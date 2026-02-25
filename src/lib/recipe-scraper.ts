@@ -395,7 +395,24 @@ async function fetchHtml(url: string): Promise<string> {
     return html;
   }
 
-  console.log(`Cloudflare challenge detected for ${url}, trying Wayback Machine…`);
+  console.log(`Cloudflare challenge detected for ${url}, trying fallbacks…`);
+
+  const scraperApiKey = process.env.SCRAPER_API_KEY;
+  if (scraperApiKey) {
+    try {
+      const apiUrl = `https://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(url)}&render=true`;
+      const res = await fetch(apiUrl, { signal: AbortSignal.timeout(30000) });
+      if (res.ok) {
+        const scraperHtml = await res.text();
+        if (scraperHtml && scraperHtml.length > 500 && !isCloudflareChallenge(scraperHtml)) {
+          return scraperHtml;
+        }
+      }
+    } catch {
+      // ScraperAPI failed — continue to Wayback Machine
+    }
+  }
+
   const waybackHtml = await fetchFromWaybackMachine(url);
   if (waybackHtml && !isCloudflareChallenge(waybackHtml)) {
     return waybackHtml;
