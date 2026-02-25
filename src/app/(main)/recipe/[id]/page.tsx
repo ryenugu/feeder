@@ -21,6 +21,8 @@ export default function RecipeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -30,6 +32,7 @@ export default function RecipeDetailPage() {
           const data = await res.json();
           setRecipe(data);
           if (data.servings) setServings(data.servings);
+          setNotesValue(data.notes || "");
         }
       } catch {
         /* ignore */
@@ -355,16 +358,62 @@ export default function RecipeDetailPage() {
         )}
 
         {/* Notes */}
-        {recipe.notes && (
-          <section className="mt-8">
-            <h2 className="mb-3 inline-block rounded-md bg-primary-light px-3 py-1 text-sm font-bold text-primary">
-              Notes
-            </h2>
-            <p className="px-2 text-sm leading-relaxed text-foreground/80">
-              {recipe.notes}
-            </p>
-          </section>
-        )}
+        <section className="mt-8">
+          <h2 className="mb-3 inline-block rounded-md bg-primary-light px-3 py-1 text-sm font-bold text-primary">
+            Notes
+          </h2>
+          {editingNotes ? (
+            <div className="space-y-2">
+              <textarea
+                value={notesValue}
+                onChange={(e) => setNotesValue(e.target.value)}
+                placeholder="Add any personal notes, tips, or modifications..."
+                rows={3}
+                autoFocus
+                className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm leading-relaxed outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-y"
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => {
+                    setEditingNotes(false);
+                    setNotesValue(recipe.notes || "");
+                  }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:bg-card"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const trimmed = notesValue.trim();
+                    setRecipe({ ...recipe, notes: trimmed || null });
+                    setEditingNotes(false);
+                    try {
+                      await fetch(`/api/recipes/${params.id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ notes: trimmed || null }),
+                      });
+                    } catch { /* ignore */ }
+                  }}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditingNotes(true)}
+              className="w-full text-left rounded-xl px-2 py-2 text-sm leading-relaxed transition-colors hover:bg-card active:bg-card"
+            >
+              {recipe.notes ? (
+                <span className="text-foreground/80">{recipe.notes}</span>
+              ) : (
+                <span className="text-muted italic">Tap to add notes...</span>
+              )}
+            </button>
+          )}
+        </section>
       </div>
 
       {recipe && (
