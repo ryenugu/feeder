@@ -305,6 +305,40 @@ function extractFromHtml(
   };
 }
 
+function isCloudflareChallenge(html: string): boolean {
+  const lower = html.toLowerCase();
+  return (
+    (lower.includes("just a moment") || lower.includes("checking your browser")) &&
+    (lower.includes("cloudflare") || lower.includes("cf-browser-verification") ||
+     lower.includes("cf_clearance") || lower.includes("challenge-platform"))
+  );
+}
+
+async function fetchFromWaybackMachine(url: string): Promise<string | null> {
+  try {
+    const cdxUrl = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(url)}&output=json&limit=1&fl=timestamp&sort=reverse`;
+    const cdxRes = await fetch(cdxUrl, { signal: AbortSignal.timeout(8000) });
+    if (!cdxRes.ok) return null;
+
+    const rows = await cdxRes.json() as string[][];
+    if (rows.length < 2) return null;
+    const timestamp = rows[1][0];
+
+    const archiveUrl = `https://web.archive.org/web/${timestamp}id_/${url}`;
+    const archiveRes = await fetch(archiveUrl, {
+      signal: AbortSignal.timeout(12000),
+      headers: { "Accept": "text/html" },
+    });
+    if (!archiveRes.ok) return null;
+
+    const html = await archiveRes.text();
+    if (!html || html.length < 500) return null;
+    return html;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchHtml(url: string): Promise<string> {
   const headers: Record<string, string> = {
     "User-Agent":
@@ -319,44 +353,57 @@ async function fetchHtml(url: string): Promise<string> {
     "Upgrade-Insecure-Requests": "1",
   };
 
+  let html: string | null = null;
+
   try {
     const response = await fetch(url, {
       headers,
       redirect: "follow",
       signal: AbortSignal.timeout(15000),
     });
-    if (response.ok) return await response.text();
+    if (response.ok) html = await response.text();
   } catch {
-    // Node fetch failed (TLS fingerprint blocked, timeout, etc.) — fall through to curl
+    // Node fetch failed — fall through to curl
   }
 
-  try {
-    const { stdout } = await execFileAsync("curl", [
-      "-sS",
-      "-L",
-      "--max-time",
-      "15",
-      "--compressed",
-      "-H",
-      "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-      "-H",
-      "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "-H",
-      "Accept-Language: en-US,en;q=0.9",
-      "-H",
-      "Referer: https://www.google.com/",
-      url,
-    ], { maxBuffer: 10 * 1024 * 1024 });
+  if (!html) {
+    try {
+      const { stdout } = await execFileAsync("curl", [
+        "-sS",
+        "-L",
+        "--max-time",
+        "15",
+        "--compressed",
+        "-H",
+        "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "-H",
+        "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "-H",
+        "Accept-Language: en-US,en;q=0.9",
+        "-H",
+        "Referer: https://www.google.com/",
+        url,
+      ], { maxBuffer: 10 * 1024 * 1024 });
 
-    if (!stdout || stdout.length < 100) {
-      throw new Error("Empty response from site");
+      if (stdout && stdout.length >= 100) html = stdout;
+    } catch {
+      // curl unavailable or failed — continue to fallbacks
     }
-    return stdout;
-  } catch (err) {
-    throw new Error(
-      `Failed to fetch recipe from this site. ${err instanceof Error ? err.message : "Try pasting the recipe manually instead."}`
-    );
   }
+
+  if (html && !isCloudflareChallenge(html)) {
+    return html;
+  }
+
+  console.log(`Cloudflare challenge detected for ${url}, trying Wayback Machine…`);
+  const waybackHtml = await fetchFromWaybackMachine(url);
+  if (waybackHtml && !isCloudflareChallenge(waybackHtml)) {
+    return waybackHtml;
+  }
+
+  throw new Error(
+    "This site's bot protection blocked the request. Try pasting the recipe ingredients and instructions manually instead."
+  );
 }
 
 export async function extractRecipe(url: string): Promise<ExtractedRecipe> {
