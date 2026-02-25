@@ -19,7 +19,7 @@ export default function CategoryFilter({
 
   return (
     <div className="no-scrollbar -mx-4 overflow-x-auto pb-2">
-      <div className="flex gap-2 px-4 w-max">
+      <div className="inline-flex gap-2 px-4">
         <button
           onClick={() => onChange(null)}
           className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors active:scale-95 ${
@@ -47,6 +47,7 @@ export default function CategoryFilter({
             </button>
           );
         })}
+        <div className="shrink-0 w-px" aria-hidden="true" />
       </div>
     </div>
   );
