@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Compass, CalendarDays, ClipboardList, User } from "lucide-react";
+import { Home, CalendarDays, ClipboardList, User } from "lucide-react";
 
 const ICON_SIZE = 22;
 
@@ -12,13 +12,6 @@ const tabs = [
     label: "Home",
     icon: (active: boolean) => (
       <Home size={ICON_SIZE} strokeWidth={active ? 2.2 : 1.6} />
-    ),
-  },
-  {
-    href: "/discover",
-    label: "Discover",
-    icon: (active: boolean) => (
-      <Compass size={ICON_SIZE} strokeWidth={active ? 2.2 : 1.6} />
     ),
   },
   {

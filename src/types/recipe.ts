@@ -53,26 +53,3 @@ export interface ExtractedRecipe {
   notes: string | null;
   source_images?: string[];
 }
-
-export interface SuggestionRecipeData {
-  title: string;
-  description: string;
-  reason: string;
-  tags: string[];
-  prep_time: string | null;
-  cook_time: string | null;
-  total_time: string | null;
-  servings: number | null;
-  ingredients: string[];
-  instructions: string[];
-}
-
-export interface Suggestion {
-  id: string;
-  user_id: string;
-  recipe_data: SuggestionRecipeData;
-  reason: string;
-  status: "active" | "saved" | "dismissed";
-  batch_id: string;
-  created_at: string;
-}

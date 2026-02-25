@@ -27,20 +27,6 @@ function isValidUrl(url: string): boolean {
   try { new URL(url); return true; } catch { return false; }
 }
 
-function isYouTubeUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return (
-      parsed.hostname === "www.youtube.com" ||
-      parsed.hostname === "youtube.com" ||
-      parsed.hostname === "youtu.be" ||
-      parsed.hostname === "m.youtube.com"
-    );
-  } catch {
-    return false;
-  }
-}
-
 export default function AddRecipeForm() {
   const [mode, setMode] = useState<InputMode>("url");
   const [url, setUrl] = useState("");
@@ -410,7 +396,7 @@ export default function AddRecipeForm() {
               autoCorrect="off"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="Paste a recipe or YouTube URL..."
+              placeholder="Paste a recipe URL..."
               required
               className="flex-1 rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
@@ -425,23 +411,14 @@ export default function AddRecipeForm() {
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
                     <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
-                  {isYouTubeUrl(url) ? "Extracting from video" : "Extracting"}
+                  Extracting
                 </span>
               ) : (
                 "Extract"
               )}
             </button>
           </div>
-          {!preview && !linkOnly && url && !loading && isYouTubeUrl(url) && !error && (
-            <div className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2 text-xs text-primary">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-error">
-                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/>
-                <path d="M9.545 15.568V8.432L15.818 12z" fill="white"/>
-              </svg>
-              YouTube video detected — recipe will be extracted from transcript or description
-            </div>
-          )}
-          {!preview && !linkOnly && url && !loading && !isYouTubeUrl(url) && (
+          {!preview && !linkOnly && url && !loading && !error && (
             <button
               type="button"
               onClick={handleSaveAsLink}
@@ -811,9 +788,7 @@ export default function AddRecipeForm() {
                 <p className="mt-0.5 text-xs text-muted">
                   {preview.source_url === "uploaded-document"
                     ? `Uploaded: ${preview.source_name}`
-                    : preview.source_name === "youtube.com"
-                      ? "From YouTube video"
-                      : preview.source_name}
+                    : preview.source_name}
                 </p>
               )}
               <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted">

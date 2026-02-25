@@ -52,11 +52,17 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: "iOS Shortcut" }),
       });
-      if (res.ok) {
-        const key = await res.json();
-        setApiKeys((prev) => [key, ...prev]);
+      if (!res.ok) {
+        showToast({ message: "Failed to create API key" });
+        return;
+      }
+      const key = await res.json();
+      setApiKeys((prev) => [key, ...prev]);
+      try {
         await navigator.clipboard.writeText(key.key);
         showToast({ message: "API key created and copied to clipboard" });
+      } catch {
+        showToast({ message: "API key created — tap the copy button to copy it" });
       }
     } catch {
       showToast({ message: "Failed to create API key" });

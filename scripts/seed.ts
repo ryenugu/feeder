@@ -11,7 +11,7 @@ import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { extractRecipe } from "../src/lib/recipe-scraper.js";
-import { extractRecipeFromVideo } from "../src/lib/youtube.js";
+
 import type { ExtractedRecipe } from "../src/types/recipe.js";
 import { SEED_RECIPES, type SeedRecipe } from "./seed-data.js";
 
@@ -301,16 +301,6 @@ async function main() {
         case "url":
           extracted = await extractRecipe(seed.url);
           break;
-        case "youtube":
-          try {
-            extracted = await withRetry(
-              () => extractRecipeFromVideo(seed.url),
-              seed.name
-            );
-          } catch {
-            extracted = makeLinkOnly(seed);
-          }
-          break;
         case "document":
           extracted = await withRetry(
             () => extractFromImages(supabase, seed.imagePaths!, userId),
@@ -357,82 +347,6 @@ async function main() {
   }
 
   console.log(`\nDone: ${ok} added, ${failed} failed out of ${SEED_RECIPES.length} recipes.`);
-
-  // Seed sample suggestions
-  console.log("\nSeeding sample AI suggestions…");
-
-  await supabase
-    .from("suggestions")
-    .delete()
-    .eq("user_id", userId);
-
-  const batchId = crypto.randomUUID();
-  const sampleSuggestions = [
-    {
-      user_id: userId,
-      batch_id: batchId,
-      status: "active",
-      reason: "You love quick Italian dishes — this one's ready in 25 min",
-      recipe_data: {
-        title: "Lemon Garlic Shrimp Linguine",
-        description: "A bright, garlicky pasta with juicy shrimp, lemon zest, and a touch of red pepper flake.",
-        reason: "You love quick Italian dishes — this one's ready in 25 min",
-        tags: ["Dinner", "Italian", "Quick"],
-        prep_time: "10 min",
-        cook_time: "15 min",
-        total_time: "25 min",
-        servings: 4,
-        ingredients: ["1 lb linguine", "1 lb large shrimp, peeled and deveined", "4 cloves garlic, minced", "Zest and juice of 2 lemons", "1/4 tsp red pepper flakes", "3 tbsp olive oil", "2 tbsp butter", "1/4 cup fresh parsley, chopped", "Salt and pepper to taste", "1/2 cup pasta water"],
-        instructions: ["Cook linguine according to package directions. Reserve 1/2 cup pasta water before draining.", "Heat olive oil and butter in a large skillet over medium-high heat.", "Add shrimp and cook 2 minutes per side until pink. Remove and set aside.", "Add garlic and red pepper flakes, sauté 30 seconds.", "Add lemon juice and pasta water, simmer 2 minutes.", "Toss in pasta and shrimp, add lemon zest and parsley, season to taste."],
-      },
-    },
-    {
-      user_id: userId,
-      batch_id: batchId,
-      status: "active",
-      reason: "Based on your breakfast favorites — great for weekend mornings",
-      recipe_data: {
-        title: "Shakshuka with Feta and Herbs",
-        description: "Eggs poached in a spiced tomato sauce with crumbled feta and fresh herbs. Perfect with crusty bread.",
-        reason: "Based on your breakfast favorites — great for weekend mornings",
-        tags: ["Breakfast", "Mediterranean", "Vegetarian"],
-        prep_time: "10 min",
-        cook_time: "20 min",
-        total_time: "30 min",
-        servings: 4,
-        ingredients: ["2 tbsp olive oil", "1 onion, diced", "1 red bell pepper, diced", "3 cloves garlic, minced", "1 tsp cumin", "1 tsp paprika", "1/4 tsp cayenne", "1 can (28 oz) crushed tomatoes", "6 large eggs", "1/2 cup crumbled feta", "Fresh cilantro and parsley", "Salt and pepper", "Crusty bread for serving"],
-        instructions: ["Heat olive oil in a large oven-safe skillet over medium heat.", "Sauté onion and bell pepper until soft, about 5 minutes.", "Add garlic, cumin, paprika, and cayenne. Cook 1 minute.", "Pour in tomatoes, season with salt and pepper, simmer 10 minutes.", "Make 6 wells in the sauce and crack an egg into each.", "Sprinkle feta around the eggs, cover, and cook 5-7 minutes until whites are set.", "Top with fresh herbs and serve with bread."],
-      },
-    },
-    {
-      user_id: userId,
-      batch_id: batchId,
-      status: "active",
-      reason: "Something new but approachable — uses ingredients you already cook with",
-      recipe_data: {
-        title: "Miso-Glazed Salmon Bowl",
-        description: "Caramelized miso salmon over fluffy rice with pickled cucumbers, avocado, and sesame seeds.",
-        reason: "Something new but approachable — uses ingredients you already cook with",
-        tags: ["Dinner", "Japanese", "Healthy"],
-        prep_time: "15 min",
-        cook_time: "12 min",
-        total_time: "27 min",
-        servings: 2,
-        ingredients: ["2 salmon fillets", "2 tbsp white miso paste", "1 tbsp mirin", "1 tbsp rice vinegar", "1 tsp sesame oil", "1 tbsp honey", "2 cups cooked rice", "1 avocado, sliced", "1 cucumber, thinly sliced", "1 tbsp rice vinegar (for pickle)", "1 tsp sugar", "Sesame seeds", "Sliced green onion"],
-        instructions: ["Mix miso, mirin, rice vinegar, sesame oil, and honey into a glaze.", "Coat salmon fillets with the glaze and let sit 10 minutes.", "Quick-pickle cucumbers: toss slices with rice vinegar, sugar, and a pinch of salt.", "Broil salmon on high for 10-12 minutes until caramelized on top.", "Divide rice into bowls, top with salmon, avocado, and pickled cucumber.", "Garnish with sesame seeds and green onion."],
-      },
-    },
-  ];
-
-  const { error: sugErr } = await supabase
-    .from("suggestions")
-    .insert(sampleSuggestions);
-
-  if (sugErr) {
-    console.log(`  ✗ Failed to seed suggestions: ${sugErr.message}`);
-  } else {
-    console.log(`  ✓ ${sampleSuggestions.length} sample suggestions added`);
-  }
 
   if (failed > 0) process.exit(1);
 }

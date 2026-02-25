@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import type { Recipe, RecipeCategory } from "@/types/recipe";
 import { RECIPE_CATEGORIES } from "@/types/recipe";
 import TagInput from "@/components/TagInput";
+import { createClient } from "@/lib/supabase/client";
+import defaultImage from "@/images/default.jpg";
 
 export default function EditRecipePage() {
   const params = useParams();
@@ -25,6 +28,9 @@ export default function EditRecipePage() {
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imgPreviewError, setImgPreviewError] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function load() {
@@ -53,6 +59,39 @@ export default function EditRecipePage() {
     }
     load();
   }, [params.id]);
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const rawExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const ext = rawExt === "jfif" ? "jpg" : rawExt;
+      const safeName = `${crypto.randomUUID()}.${ext}`;
+      const path = `${user.id}/covers/${safeName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("recipe-images")
+        .upload(path, file);
+      if (uploadError) throw uploadError;
+
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const publicUrl = `${supabaseUrl}/storage/v1/object/public/recipe-images/${path.split("/").map(encodeURIComponent).join("/")}`;
+
+      setImageUrl(publicUrl);
+      setImgPreviewError(false);
+    } catch {
+      setError("Failed to upload image");
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -150,14 +189,67 @@ export default function EditRecipePage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-semibold text-muted">Image URL</label>
-          <input
-            type="url"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://..."
-            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          />
+          <label className="mb-1.5 block text-xs font-semibold text-muted">Recipe Photo</label>
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-border bg-card">
+            {imageUrl && !imgPreviewError ? (
+              <Image
+                src={imageUrl}
+                alt="Recipe preview"
+                fill
+                className="object-cover"
+                sizes="(max-width: 512px) 100vw, 512px"
+                onError={() => setImgPreviewError(true)}
+                unoptimized={imageUrl.toLowerCase().endsWith(".jfif")}
+              />
+            ) : (
+              <Image
+                src={defaultImage}
+                alt="Default recipe"
+                fill
+                placeholder="blur"
+                className="object-cover"
+                sizes="(max-width: 512px) 100vw, 512px"
+              />
+            )}
+
+            {uploadingImage && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40">
+                <svg className="h-8 w-8 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                  <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              </div>
+            )}
+
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={uploadingImage}
+              className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-card/90 px-3 py-2 text-xs font-medium text-foreground shadow-md backdrop-blur-sm active:scale-95 transition-transform disabled:opacity-50"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+              Change Photo
+            </button>
+          </div>
+          {imageUrl && (
+            <button
+              type="button"
+              onClick={() => { setImageUrl(""); setImgPreviewError(false); }}
+              className="mt-2 text-xs text-muted hover:text-error transition-colors"
+            >
+              Remove photo (use default)
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-3">

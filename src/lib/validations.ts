@@ -40,6 +40,30 @@ export const extractUrlSchema = z.object({
   url: z.string().url("Invalid URL"),
 });
 
+export const groceryStoreCreateSchema = z.object({
+  name: z.string().min(1, "Store name is required").max(200),
+  sort_order: z.number().int().default(0),
+});
+
+export const groceryStoreUpdateSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(200).optional(),
+  sort_order: z.number().int().optional(),
+});
+
+export const groceryItemCreateSchema = z.object({
+  store_id: z.string().uuid("Invalid store ID"),
+  name: z.string().min(1, "Item name is required").max(500),
+  sort_order: z.number().int().default(0),
+});
+
+export const groceryItemUpdateSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(500).optional(),
+  checked: z.boolean().optional(),
+  sort_order: z.number().int().optional(),
+});
+
 export const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),

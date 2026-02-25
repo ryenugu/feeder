@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useMemo } from "react";
 import type { MealPlanEntry } from "@/types/recipe";
+import GroceryList from "@/components/GroceryList";
+
+const TAB_KEY = "shop-tab";
 
 function formatDate(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -26,7 +29,15 @@ function normalizeIngredient(ing: string): { qty: string; item: string } {
   return { qty: "", item: ing.trim().toLowerCase() };
 }
 
+type Tab = "recipes" | "groceries";
+
 export default function ShoppingListPage() {
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem(TAB_KEY) as Tab) || "groceries";
+    }
+    return "groceries";
+  });
   const [weekOffset, setWeekOffset] = useState(0);
   const [entries, setEntries] = useState<MealPlanEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +45,13 @@ export default function ShoppingListPage() {
 
   const { start, end } = getWeekDates(weekOffset);
 
+  function switchTab(t: Tab) {
+    setTab(t);
+    localStorage.setItem(TAB_KEY, t);
+  }
+
   useEffect(() => {
+    if (tab !== "recipes") return;
     async function load() {
       setLoading(true);
       try {
@@ -47,7 +64,7 @@ export default function ShoppingListPage() {
       }
     }
     load();
-  }, [start, end]);
+  }, [start, end, tab]);
 
   const groupedIngredients = useMemo(() => {
     const allIngredients: string[] = [];
@@ -106,8 +123,8 @@ export default function ShoppingListPage() {
   return (
     <div className="px-4 pb-24">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-primary">Shopping List</h1>
-        {groupedIngredients.length > 0 && (
+        <h1 className="text-2xl font-bold text-primary">Shop</h1>
+        {tab === "recipes" && groupedIngredients.length > 0 && (
           <button
             onClick={copyList}
             className="rounded-lg bg-primary-light px-3 py-1.5 text-xs font-semibold text-primary transition-colors active:scale-95"
@@ -117,79 +134,108 @@ export default function ShoppingListPage() {
         )}
       </div>
 
-      <div className="mb-6 flex items-center justify-between">
-        <button onClick={() => setWeekOffset((w) => w - 1)} className="p-2 text-primary" aria-label="Previous week">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
+      <div className="mb-5 flex rounded-lg bg-primary-light/50 p-1">
+        <button
+          onClick={() => switchTab("groceries")}
+          className={`flex-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-all ${
+            tab === "groceries"
+              ? "bg-card text-primary shadow-sm"
+              : "text-muted"
+          }`}
+        >
+          Groceries
         </button>
-        <h2 className="text-base font-bold">{weekLabel}</h2>
-        <button onClick={() => setWeekOffset((w) => w + 1)} className="p-2 text-primary" aria-label="Next week">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
+        <button
+          onClick={() => switchTab("recipes")}
+          className={`flex-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-all ${
+            tab === "recipes"
+              ? "bg-card text-primary shadow-sm"
+              : "text-muted"
+          }`}
+        >
+          Recipes
         </button>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <svg className="h-6 w-6 animate-spin text-primary" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
-            <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-        </div>
-      ) : groupedIngredients.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-light">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary">
-              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
-              <rect x="9" y="3" width="6" height="4" rx="1" />
-              <line x1="9" y1="12" x2="15" y2="12" />
-              <line x1="9" y1="16" x2="13" y2="16" />
-            </svg>
-          </div>
-          <h2 className="mb-1 text-lg font-semibold">No meals planned</h2>
-          <p className="text-sm text-muted">
-            Add recipes to your meal plan to generate a shopping list
-          </p>
-        </div>
+      {tab === "groceries" ? (
+        <GroceryList />
       ) : (
         <>
-          <p className="mb-4 text-sm text-muted">
-            {uncheckedCount} item{uncheckedCount !== 1 ? "s" : ""} remaining
-            {" · "}
-            {entries.length} meal{entries.length !== 1 ? "s" : ""} planned
-          </p>
-
-          <div className="space-y-1">
-            {groupedIngredients.map((group) => {
-              const isChecked = checked.has(group.key);
-              return (
-                <button
-                  key={group.key}
-                  onClick={() => toggleItem(group.key)}
-                  className={`flex w-full items-start gap-3 rounded-lg px-2 py-3 text-left transition-colors active:bg-primary-light/50 ${
-                    isChecked ? "opacity-40" : ""
-                  }`}
-                >
-                  <span
-                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-                      isChecked ? "border-primary bg-primary" : "border-border"
-                    }`}
-                  >
-                    {isChecked && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    )}
-                  </span>
-                  <span className={`text-sm leading-relaxed ${isChecked ? "line-through" : ""}`}>
-                    {group.display}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="mb-6 flex items-center justify-between">
+            <button onClick={() => setWeekOffset((w) => w - 1)} className="p-2 text-primary" aria-label="Previous week">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <h2 className="text-base font-bold">{weekLabel}</h2>
+            <button onClick={() => setWeekOffset((w) => w + 1)} className="p-2 text-primary" aria-label="Next week">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
           </div>
+
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <svg className="h-6 w-6 animate-spin text-primary" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            </div>
+          ) : groupedIngredients.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-light">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary">
+                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+                  <rect x="9" y="3" width="6" height="4" rx="1" />
+                  <line x1="9" y1="12" x2="15" y2="12" />
+                  <line x1="9" y1="16" x2="13" y2="16" />
+                </svg>
+              </div>
+              <h2 className="mb-1 text-lg font-semibold">No meals planned</h2>
+              <p className="text-sm text-muted">
+                Add recipes to your meal plan to generate a shopping list
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="mb-4 text-sm text-muted">
+                {uncheckedCount} item{uncheckedCount !== 1 ? "s" : ""} remaining
+                {" · "}
+                {entries.length} meal{entries.length !== 1 ? "s" : ""} planned
+              </p>
+
+              <div className="space-y-1">
+                {groupedIngredients.map((group) => {
+                  const isChecked = checked.has(group.key);
+                  return (
+                    <button
+                      key={group.key}
+                      onClick={() => toggleItem(group.key)}
+                      className={`flex w-full items-start gap-3 rounded-lg px-2 py-3 text-left transition-colors active:bg-primary-light/50 ${
+                        isChecked ? "opacity-40" : ""
+                      }`}
+                    >
+                      <span
+                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                          isChecked ? "border-primary bg-primary" : "border-border"
+                        }`}
+                      >
+                        {isChecked && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className={`text-sm leading-relaxed ${isChecked ? "line-through" : ""}`}>
+                        {group.display}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

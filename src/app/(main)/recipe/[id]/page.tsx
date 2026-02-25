@@ -12,6 +12,7 @@ import ServingAdjuster from "@/components/ServingAdjuster";
 import { useToast } from "@/components/Toast";
 import ShareSheet from "@/components/ShareSheet";
 import defaultImage from "@/images/default.jpg";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RecipeDetailPage() {
   const params = useParams();
@@ -27,6 +28,8 @@ export default function RecipeDetailPage() {
   const [notesValue, setNotesValue] = useState("");
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function load() {
@@ -126,6 +129,47 @@ export default function RecipeDetailPage() {
     });
   }
 
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !recipe) return;
+
+    setUploadingImage(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const rawExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const ext = rawExt === "jfif" ? "jpg" : rawExt;
+      const safeName = `${crypto.randomUUID()}.${ext}`;
+      const path = `${user.id}/covers/${safeName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("recipe-images")
+        .upload(path, file);
+      if (uploadError) throw uploadError;
+
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const publicUrl = `${supabaseUrl}/storage/v1/object/public/recipe-images/${path.split("/").map(encodeURIComponent).join("/")}`;
+
+      const res = await fetch(`/api/recipes/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_url: publicUrl }),
+      });
+      if (!res.ok) throw new Error("Failed to update recipe");
+
+      setRecipe({ ...recipe, image_url: publicUrl });
+      setImgError(false);
+      router.refresh();
+    } catch {
+      showToast({ message: "Failed to update image" });
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  }
+
   async function handleCategoryToggle(cat: RecipeCategory) {
     if (!recipe) return;
     const current = recipe.categories || [];
@@ -223,6 +267,33 @@ export default function RecipeDetailPage() {
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+
+        {uploadingImage && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40">
+            <svg className="h-8 w-8 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+              <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+          </div>
+        )}
+
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+          onChange={handleImageUpload}
+        />
+        <button
+          onClick={() => imageInputRef.current?.click()}
+          disabled={uploadingImage}
+          className="absolute bottom-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-card/90 text-foreground shadow-md backdrop-blur-sm active:scale-95 transition-transform disabled:opacity-50"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+        </button>
       </div>
 
       <div

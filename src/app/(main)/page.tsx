@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Recipe } from "@/types/recipe";
 import RecipeGrid from "@/components/RecipeGrid";
-import SuggestionCarousel from "@/components/SuggestionCarousel";
+
 import coverImage from "@/images/c4355a99-7f7a-4525-a862-bd7861c8b8c2.jpg";
 
 export default async function HomePage() {
@@ -45,8 +45,6 @@ export default async function HomePage() {
           </p>
         </div>
       </div>
-
-      <SuggestionCarousel />
 
       <div className="px-4">
         <RecipeGrid recipes={typedRecipes} />

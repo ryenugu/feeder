@@ -1,4 +1,4 @@
-export type SeedType = "url" | "youtube" | "link-only" | "document";
+export type SeedType = "url" | "link-only" | "document";
 
 export interface SeedRecipe {
   url: string;
@@ -48,11 +48,6 @@ export const SEED_RECIPES: SeedRecipe[] = [
     url: "https://tastesbetterfromscratch.com/sheet-pan-chicken-fajitas/",
     name: "Sheet Pan Chicken Fajitas",
     type: "url",
-  },
-  {
-    url: "https://www.youtube.com/watch?v=WOvFCGjGp1A",
-    name: "YouTube Recipe Video",
-    type: "youtube",
   },
   {
     url: "https://www.instagram.com/reel/DUBHa9okXnH/?igsh=MW92N3pnZnYxcXF2Yw==",
