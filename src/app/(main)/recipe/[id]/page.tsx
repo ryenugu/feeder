@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import type { Recipe } from "@/types/recipe";
+import type { Recipe, RecipeCategory } from "@/types/recipe";
+import { RECIPE_CATEGORIES } from "@/types/recipe";
 import IngredientList from "@/components/IngredientList";
 import InstructionList from "@/components/InstructionList";
 import ServingAdjuster from "@/components/ServingAdjuster";
@@ -44,6 +45,24 @@ export default function RecipeDetailPage() {
     }
   }
 
+  async function handleCategoryToggle(cat: RecipeCategory) {
+    if (!recipe) return;
+    const current = recipe.categories || [];
+    const updated = current.includes(cat)
+      ? current.filter((c) => c !== cat)
+      : [...current, cat];
+    setRecipe({ ...recipe, categories: updated });
+    try {
+      await fetch(`/api/recipes/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ categories: updated }),
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -73,13 +92,13 @@ export default function RecipeDetailPage() {
     <div className="pb-24">
       {/* Hero image */}
       {recipe.image_url && (
-        <div className="relative aspect-[4/3] w-full">
+        <div className="relative aspect-[4/3] w-full overflow-hidden">
           <Image
             src={recipe.image_url}
             alt={recipe.title}
             fill
             className="object-cover"
-            sizes="100vw"
+            sizes="(max-width: 512px) 100vw, 512px"
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
@@ -88,11 +107,11 @@ export default function RecipeDetailPage() {
 
       {/* Floating back / menu buttons */}
       <div
-        className={`${recipe.image_url ? "absolute top-0 left-0 right-0" : ""} flex items-center justify-between p-4`}
+        className={`${recipe.image_url ? "absolute top-0 left-0 right-0 safe-top" : "safe-top"} flex items-center justify-between p-4`}
       >
         <button
           onClick={() => router.back()}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/90 text-white shadow-md backdrop-blur-sm"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/90 text-white shadow-md backdrop-blur-sm active:scale-95 transition-transform"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
@@ -101,7 +120,7 @@ export default function RecipeDetailPage() {
         <div className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-foreground shadow-md backdrop-blur-sm"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-card/90 text-foreground shadow-md backdrop-blur-sm active:scale-95 transition-transform"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <circle cx="12" cy="5" r="2" />
@@ -146,6 +165,23 @@ export default function RecipeDetailPage() {
             Source: {recipe.source_name}
           </a>
         )}
+
+        {/* Categories */}
+        <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto pb-1">
+          {RECIPE_CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => handleCategoryToggle(cat)}
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors active:scale-95 ${
+                (recipe.categories || []).includes(cat)
+                  ? "bg-primary text-white"
+                  : "border border-border text-muted active:text-foreground"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
 
         {/* Time & servings */}
         <div className="mt-4 flex flex-wrap items-center gap-6">

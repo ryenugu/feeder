@@ -1,3 +1,14 @@
+export const RECIPE_CATEGORIES = [
+  "Go-to Recipes",
+  "Breakfast",
+  "Lunch",
+  "Dinner",
+  "Snacks",
+  "New Ideas",
+] as const;
+
+export type RecipeCategory = (typeof RECIPE_CATEGORIES)[number];
+
 export interface Recipe {
   id: string;
   user_id: string;
@@ -13,6 +24,7 @@ export interface Recipe {
   instructions: string[];
   notes: string | null;
   tags: string[] | null;
+  categories: RecipeCategory[];
   created_at: string;
 }
 

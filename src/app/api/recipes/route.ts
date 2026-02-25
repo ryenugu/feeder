@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       instructions: body.instructions,
       notes: body.notes,
       tags: body.tags || null,
+      categories: body.categories || [],
     })
     .select()
     .single();

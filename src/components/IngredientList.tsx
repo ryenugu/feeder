@@ -73,7 +73,7 @@ export default function IngredientList({
         <button
           key={i}
           onClick={() => toggle(i)}
-          className={`flex w-full items-start gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-primary-light/50 ${
+          className={`flex w-full items-start gap-3 rounded-lg px-2 py-3 text-left transition-colors active:bg-primary-light/50 ${
             checked.has(i) ? "opacity-50" : ""
           }`}
         >

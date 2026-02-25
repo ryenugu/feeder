@@ -15,7 +15,7 @@ export default function RecipeCard({ recipe }: { recipe: Recipe }) {
             alt={recipe.title}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            sizes="(max-width: 512px) 50vw, (max-width: 1024px) 33vw, 25vw"
           />
         ) : (
           <div className="flex h-full items-center justify-center">
@@ -44,6 +44,18 @@ export default function RecipeCard({ recipe }: { recipe: Recipe }) {
             <span className="truncate">{recipe.source_name}</span>
           )}
         </div>
+        {recipe.categories?.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {recipe.categories.map((cat) => (
+              <span
+                key={cat}
+                className="rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-medium text-primary"
+              >
+                {cat}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </Link>
   );

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ExtractedRecipe } from "@/types/recipe";
+import type { ExtractedRecipe, RecipeCategory } from "@/types/recipe";
+import { RECIPE_CATEGORIES } from "@/types/recipe";
 import Image from "next/image";
 
 export default function AddRecipeForm() {
@@ -11,6 +12,7 @@ export default function AddRecipeForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<ExtractedRecipe | null>(null);
+  const [categories, setCategories] = useState<RecipeCategory[]>([]);
   const router = useRouter();
 
   async function handleExtract(e: React.FormEvent) {
@@ -44,7 +46,7 @@ export default function AddRecipeForm() {
       const res = await fetch("/api/recipes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(preview),
+        body: JSON.stringify({ ...preview, categories }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
@@ -70,7 +72,7 @@ export default function AddRecipeForm() {
           <button
             type="submit"
             disabled={loading}
-            className="shrink-0 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-50"
+            className="shrink-0 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white transition-all active:scale-95 active:bg-primary/80 disabled:opacity-50"
           >
             {loading ? (
               <span className="flex items-center gap-2">
@@ -171,10 +173,38 @@ export default function AddRecipeForm() {
             </ul>
           </div>
 
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">
+              Categories
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {RECIPE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() =>
+                    setCategories((prev) =>
+                      prev.includes(cat)
+                        ? prev.filter((c) => c !== cat)
+                        : [...prev, cat]
+                    )
+                  }
+                  className={`rounded-full px-3.5 py-2 text-xs font-medium transition-colors active:scale-95 ${
+                    categories.includes(cat)
+                      ? "bg-primary text-white"
+                      : "border border-border bg-card text-muted active:text-foreground"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-50"
+            className="w-full rounded-xl bg-primary py-3.5 text-sm font-semibold text-white transition-all active:scale-[0.98] active:bg-primary/80 disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save Recipe"}
           </button>

@@ -1,5 +1,7 @@
 import Navbar from "@/components/Navbar";
 
+export const dynamic = "force-dynamic";
+
 export default function MainLayout({
   children,
 }: {
@@ -7,7 +9,7 @@ export default function MainLayout({
 }) {
   return (
     <>
-      <main className="mx-auto min-h-screen max-w-lg pb-20 pt-4">
+      <main className="safe-top mx-auto min-h-screen max-w-lg pb-24 pt-4">
         {children}
       </main>
       <Navbar />

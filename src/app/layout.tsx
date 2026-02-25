@@ -12,12 +12,18 @@ export const metadata: Metadata = {
   title: "Feeder",
   description: "Clean recipe aggregator for your family",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Feeder",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
   themeColor: "#2d8b5e",
 };
 
