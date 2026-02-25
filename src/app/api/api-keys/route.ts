@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { mealPlanCreateSchema } from "@/lib/validations";
+import crypto from "crypto";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -12,26 +12,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const url = new URL(request.url);
-  const startDate = url.searchParams.get("start");
-  const endDate = url.searchParams.get("end");
-
-  let query = supabase
-    .from("meal_plans")
-    .select("*, recipe:recipes(*)")
+  const { data, error } = await supabase
+    .from("api_keys")
+    .select("id, name, key, created_at, active")
     .eq("user_id", user.id)
-    .order("planned_date", { ascending: true });
-
-  if (startDate) query = query.gte("planned_date", startDate);
-  if (endDate) query = query.lte("planned_date", endDate);
-
-  const { data, error } = await query;
+    .order("created_at", { ascending: false });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json(data || []);
 }
 
 export async function POST(request: NextRequest) {
@@ -45,22 +36,13 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const parsed = mealPlanCreateSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
-      { status: 400 }
-    );
-  }
+  const name = body.name || "iOS Shortcut";
+  const key = `fdr_${crypto.randomBytes(24).toString("hex")}`;
 
   const { data, error } = await supabase
-    .from("meal_plans")
-    .insert({
-      user_id: user.id,
-      ...parsed.data,
-    })
-    .select("*, recipe:recipes(*)")
+    .from("api_keys")
+    .insert({ user_id: user.id, name, key, active: true })
+    .select()
     .single();
 
   if (error) {
@@ -88,7 +70,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   const { error } = await supabase
-    .from("meal_plans")
+    .from("api_keys")
     .delete()
     .eq("id", id)
     .eq("user_id", user.id);

@@ -1,15 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { extractRecipe } from "@/lib/recipe-scraper";
+import { createApiKeyClient } from "@/lib/supabase/api-key";
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let userId: string | null = null;
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const apiKey = request.headers.get("x-api-key");
+  if (apiKey) {
+    const result = await createApiKeyClient(apiKey);
+    if (result) {
+      userId = result.userId;
+    }
+  }
+
+  if (!userId) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    userId = user?.id || null;
+  }
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized. Provide a valid session or x-api-key header." }, { status: 401 });
   }
 
   try {
@@ -21,10 +35,13 @@ export async function POST(request: NextRequest) {
 
     const extracted = await extractRecipe(url);
 
+    const { createClient: createServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createServerClient();
+
     const { data, error } = await supabase
       .from("recipes")
       .insert({
-        user_id: user.id,
+        user_id: userId,
         title: extracted.title,
         image_url: extracted.image_url,
         source_url: extracted.source_url,

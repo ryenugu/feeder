@@ -3,19 +3,24 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import type { Recipe, RecipeCategory } from "@/types/recipe";
 import { RECIPE_CATEGORIES } from "@/types/recipe";
 import IngredientList from "@/components/IngredientList";
 import InstructionList from "@/components/InstructionList";
 import ServingAdjuster from "@/components/ServingAdjuster";
+import { useToast } from "@/components/Toast";
+import ShareSheet from "@/components/ShareSheet";
 
 export default function RecipeDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { showToast } = useToast();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [servings, setServings] = useState<number>(4);
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -36,10 +41,52 @@ export default function RecipeDetailPage() {
   }, [params.id]);
 
   async function handleDelete() {
-    if (!confirm("Delete this recipe?")) return;
+    if (!recipe) return;
+    const deletedRecipe = { ...recipe };
+
+    setRecipe(null);
+    router.push("/");
+
+    showToast({
+      message: "Recipe deleted",
+      duration: 5000,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          try {
+            const res = await fetch("/api/recipes", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                title: deletedRecipe.title,
+                image_url: deletedRecipe.image_url,
+                source_url: deletedRecipe.source_url,
+                source_name: deletedRecipe.source_name,
+                total_time: deletedRecipe.total_time,
+                prep_time: deletedRecipe.prep_time,
+                cook_time: deletedRecipe.cook_time,
+                servings: deletedRecipe.servings,
+                ingredients: deletedRecipe.ingredients,
+                instructions: deletedRecipe.instructions,
+                notes: deletedRecipe.notes,
+                tags: deletedRecipe.tags,
+                categories: deletedRecipe.categories,
+              }),
+            });
+            if (res.ok) {
+              const restored = await res.json();
+              router.push(`/recipe/${restored.id}`);
+              router.refresh();
+            }
+          } catch {
+            /* ignore */
+          }
+        },
+      },
+    });
+
     try {
       await fetch(`/api/recipes/${params.id}`, { method: "DELETE" });
-      router.push("/");
     } catch {
       /* ignore */
     }
@@ -61,6 +108,31 @@ export default function RecipeDetailPage() {
     } catch {
       /* ignore */
     }
+  }
+
+  function getShareText() {
+    if (!recipe) return "";
+    return [
+      recipe.title,
+      "",
+      recipe.total_time ? `Time: ${recipe.total_time}` : null,
+      recipe.servings ? `Servings: ${recipe.servings}` : null,
+      "",
+      "INGREDIENTS:",
+      ...recipe.ingredients.map((i) => `• ${i}`),
+      "",
+      "INSTRUCTIONS:",
+      ...recipe.instructions.map((s, i) => `${i + 1}. ${s}`),
+      recipe.notes ? `\nNOTES:\n${recipe.notes}` : null,
+      recipe.source_url ? `\nSource: ${recipe.source_url}` : null,
+    ]
+      .filter((line) => line !== null)
+      .join("\n");
+  }
+
+  function openShare() {
+    setShowMenu(false);
+    setShowShare(true);
   }
 
   if (loading) {
@@ -90,7 +162,6 @@ export default function RecipeDetailPage() {
 
   return (
     <div className="pb-24">
-      {/* Hero image */}
       {recipe.image_url && (
         <div className="relative aspect-[4/3] w-full overflow-hidden">
           <Image
@@ -105,7 +176,6 @@ export default function RecipeDetailPage() {
         </div>
       )}
 
-      {/* Floating back / menu buttons */}
       <div
         className={`${recipe.image_url ? "absolute top-0 left-0 right-0 safe-top" : "safe-top"} flex items-center justify-between p-4`}
       >
@@ -129,21 +199,54 @@ export default function RecipeDetailPage() {
             </svg>
           </button>
           {showMenu && (
-            <div className="absolute right-0 top-11 z-10 w-44 rounded-xl border border-border bg-card py-1 shadow-lg">
+            <div className="absolute right-0 top-11 z-10 w-48 rounded-xl border border-border bg-card py-1 shadow-lg">
+              <Link
+                href={`/recipe/${recipe.id}/edit`}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-primary-light"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Edit Recipe
+              </Link>
+              <button
+                onClick={openShare}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-primary-light"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+                Share Recipe
+              </button>
               {recipe.source_url && (
                 <a
                   href={recipe.source_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block px-4 py-2.5 text-sm hover:bg-primary-light"
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-primary-light"
                 >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
                   View Original
                 </a>
               )}
+              <hr className="my-1 border-border" />
               <button
                 onClick={handleDelete}
-                className="block w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-500/10 dark:text-red-400"
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-500/10 dark:text-red-400"
               >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                </svg>
                 Delete Recipe
               </button>
             </div>
@@ -151,7 +254,6 @@ export default function RecipeDetailPage() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="relative -mt-4 rounded-t-3xl bg-background px-5 pt-6">
         <h1 className="text-2xl font-bold leading-tight">{recipe.title}</h1>
 
@@ -164,6 +266,20 @@ export default function RecipeDetailPage() {
           >
             Source: {recipe.source_name}
           </a>
+        )}
+
+        {/* Tags */}
+        {recipe.tags && recipe.tags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {recipe.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-accent/10 px-2.5 py-0.5 text-[11px] font-medium text-accent"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
         )}
 
         {/* Categories */}
@@ -190,6 +306,22 @@ export default function RecipeDetailPage() {
               <p className="text-xs text-muted">Total Time</p>
               <p className="text-base font-bold text-primary">
                 {recipe.total_time}
+              </p>
+            </div>
+          )}
+          {recipe.prep_time && (
+            <div>
+              <p className="text-xs text-muted">Prep</p>
+              <p className="text-base font-bold text-primary">
+                {recipe.prep_time}
+              </p>
+            </div>
+          )}
+          {recipe.cook_time && (
+            <div>
+              <p className="text-xs text-muted">Cook</p>
+              <p className="text-base font-bold text-primary">
+                {recipe.cook_time}
               </p>
             </div>
           )}
@@ -234,6 +366,17 @@ export default function RecipeDetailPage() {
           </section>
         )}
       </div>
+
+      {recipe && (
+        <ShareSheet
+          open={showShare}
+          onClose={() => setShowShare(false)}
+          title={recipe.title}
+          url={typeof window !== "undefined" ? window.location.href : ""}
+          text={getShareText()}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { recipeUpdateSchema } from "@/lib/validations";
 
 export async function GET(
   _request: NextRequest,
@@ -71,10 +72,18 @@ export async function PATCH(
   }
 
   const body = await request.json();
+  const parsed = recipeUpdateSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
 
   const { data, error } = await supabase
     .from("recipes")
-    .update(body)
+    .update(parsed.data)
     .eq("id", id)
     .eq("user_id", user.id)
     .select()

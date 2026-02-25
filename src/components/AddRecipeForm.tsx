@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ExtractedRecipe, RecipeCategory } from "@/types/recipe";
 import { RECIPE_CATEGORIES } from "@/types/recipe";
 import Image from "next/image";
+import TagInput from "./TagInput";
 
 export default function AddRecipeForm() {
   const [url, setUrl] = useState("");
@@ -13,6 +14,8 @@ export default function AddRecipeForm() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<ExtractedRecipe | null>(null);
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [notes, setNotes] = useState("");
   const router = useRouter();
 
   async function handleExtract(e: React.FormEvent) {
@@ -46,7 +49,12 @@ export default function AddRecipeForm() {
       const res = await fetch("/api/recipes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...preview, categories }),
+        body: JSON.stringify({
+          ...preview,
+          categories,
+          tags: tags.length > 0 ? tags : null,
+          notes: notes.trim() || null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
@@ -174,6 +182,11 @@ export default function AddRecipeForm() {
           </div>
 
           <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">Tags</h4>
+            <TagInput tags={tags} onChange={setTags} placeholder="e.g. quick, pasta, vegetarian..." />
+          </div>
+
+          <div>
             <h4 className="mb-2 text-sm font-semibold text-primary">
               Categories
             </h4>
@@ -199,6 +212,17 @@ export default function AddRecipeForm() {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">Notes</h4>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add any personal notes, tips, or modifications..."
+              rows={3}
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-y"
+            />
           </div>
 
           <button

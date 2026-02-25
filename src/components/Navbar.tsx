@@ -45,6 +45,31 @@ const tabs = [
     ),
   },
   {
+    href: "/shopping-list",
+    label: "Shop",
+    icon: (active: boolean) => (
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill={active ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+        <rect x="9" y="3" width="6" height="4" rx="1" />
+        {!active && (
+          <>
+            <line x1="9" y1="12" x2="15" y2="12" />
+            <line x1="9" y1="16" x2="13" y2="16" />
+          </>
+        )}
+      </svg>
+    ),
+  },
+  {
     href: "/profile",
     label: "Profile",
     icon: (active: boolean) => (
@@ -81,7 +106,7 @@ export default function Navbar() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex flex-col items-center gap-0.5 px-4 py-1.5 text-xs transition-colors active:scale-95 ${
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 text-xs transition-colors active:scale-95 ${
                 isActive ? "text-primary" : "text-muted"
               }`}
             >

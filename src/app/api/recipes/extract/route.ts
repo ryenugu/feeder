@@ -1,26 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractRecipe } from "@/lib/recipe-scraper";
+import { extractUrlSchema } from "@/lib/validations";
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json();
+    const body = await request.json();
+    const parsed = extractUrlSchema.safeParse(body);
 
-    if (!url || typeof url !== "string") {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "URL is required" },
+        { error: parsed.error.issues[0]?.message || "Invalid URL" },
         { status: 400 }
       );
     }
 
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(url);
-      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-        throw new Error("Invalid protocol");
-      }
-    } catch {
+    const parsedUrl = new URL(parsed.data.url);
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
       return NextResponse.json(
-        { error: "Invalid URL format" },
+        { error: "Invalid protocol" },
         { status: 400 }
       );
     }
