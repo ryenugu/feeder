@@ -120,6 +120,20 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json();
   const { type, ...rest } = body;
 
+  if (type === "reset-all") {
+    const { error } = await supabase
+      .from("grocery_items")
+      .update({ checked: false })
+      .eq("user_id", user.id)
+      .eq("checked", true);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
   if (type === "store") {
     const parsed = groceryStoreUpdateSchema.safeParse(rest);
     if (!parsed.success) {

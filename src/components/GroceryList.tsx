@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2, Pencil, X, Store } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Trash2, Pencil, X, Store, RotateCcw } from "lucide-react";
 
 interface GroceryItem {
   id: string;
@@ -45,6 +45,7 @@ export default function GroceryList() {
   const newStoreInputRef = useRef<HTMLInputElement>(null);
   const editStoreInputRef = useRef<HTMLInputElement>(null);
   const newItemInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const seedingRef = useRef(false);
 
   const fetchStores = useCallback(async () => {
     try {
@@ -52,6 +53,8 @@ export default function GroceryList() {
       if (res.ok) {
         const data: GroceryStore[] = await res.json();
         if (data.length === 0) {
+          if (seedingRef.current) return;
+          seedingRef.current = true;
           await seedPresets();
           return;
         }
@@ -225,6 +228,22 @@ export default function GroceryList() {
     (sum, s) => sum + s.items.filter((i) => !i.checked).length,
     0
   );
+  const checkedItems = totalItems - uncheckedItems;
+
+  async function resetAll() {
+    setStores((prev) =>
+      prev.map((s) => ({
+        ...s,
+        items: s.items.map((i) => ({ ...i, checked: false })),
+      }))
+    );
+
+    await fetch("/api/groceries", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "reset-all" }),
+    });
+  }
 
   if (loading) {
     return (
@@ -240,11 +259,22 @@ export default function GroceryList() {
   return (
     <div>
       {totalItems > 0 && (
-        <p className="mb-4 text-sm text-muted">
-          {uncheckedItems} item{uncheckedItems !== 1 ? "s" : ""} remaining
-          {" · "}
-          {stores.length} store{stores.length !== 1 ? "s" : ""}
-        </p>
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-sm text-muted">
+            {uncheckedItems} item{uncheckedItems !== 1 ? "s" : ""} remaining
+            {" · "}
+            {stores.length} store{stores.length !== 1 ? "s" : ""}
+          </p>
+          {checkedItems > 0 && (
+            <button
+              onClick={resetAll}
+              className="flex items-center gap-1.5 rounded-lg bg-primary-light px-3 py-1.5 text-xs font-semibold text-primary transition-colors active:scale-95"
+            >
+              <RotateCcw size={12} />
+              Reset All
+            </button>
+          )}
+        </div>
       )}
 
       <div className="space-y-3">

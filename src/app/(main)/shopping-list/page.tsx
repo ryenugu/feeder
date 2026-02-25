@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import type { MealPlanEntry } from "@/types/recipe";
 import GroceryList from "@/components/GroceryList";
+import CombinedShoppingList from "@/components/CombinedShoppingList";
 
 const TAB_KEY = "shop-tab";
 
@@ -29,7 +30,7 @@ function normalizeIngredient(ing: string): { qty: string; item: string } {
   return { qty: "", item: ing.trim().toLowerCase() };
 }
 
-type Tab = "recipes" | "groceries";
+type Tab = "recipes" | "groceries" | "all";
 
 export default function ShoppingListPage() {
   const [tab, setTab] = useState<Tab>(() => {
@@ -51,7 +52,7 @@ export default function ShoppingListPage() {
   }
 
   useEffect(() => {
-    if (tab !== "recipes") return;
+    if (tab !== "recipes" && tab !== "all") return;
     async function load() {
       setLoading(true);
       try {
@@ -136,6 +137,16 @@ export default function ShoppingListPage() {
 
       <div className="mb-5 flex rounded-lg bg-primary-light/50 p-1">
         <button
+          onClick={() => switchTab("all")}
+          className={`flex-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-all ${
+            tab === "all"
+              ? "bg-card text-primary shadow-sm"
+              : "text-muted"
+          }`}
+        >
+          All
+        </button>
+        <button
           onClick={() => switchTab("groceries")}
           className={`flex-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-all ${
             tab === "groceries"
@@ -157,7 +168,9 @@ export default function ShoppingListPage() {
         </button>
       </div>
 
-      {tab === "groceries" ? (
+      {tab === "all" ? (
+        <CombinedShoppingList groupedIngredients={groupedIngredients} loading={loading} />
+      ) : tab === "groceries" ? (
         <GroceryList />
       ) : (
         <>
