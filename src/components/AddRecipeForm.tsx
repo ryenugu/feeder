@@ -167,6 +167,7 @@ export default function AddRecipeForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
+      router.refresh();
       router.push(`/recipe/${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -364,8 +365,103 @@ export default function AddRecipeForm() {
       )}
 
       {error && (
-        <div className="rounded-xl bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
-          {error}
+        <div className="space-y-3">
+          <div className="rounded-xl bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
+            {error}
+          </div>
+          {mode === "url" && !linkOnly && url && (
+            <button
+              type="button"
+              onClick={handleSaveAsLink}
+              className="w-full rounded-xl border border-border bg-card py-3 text-sm font-medium text-foreground transition-all active:scale-[0.98] hover:border-primary"
+            >
+              Save as link only instead
+            </button>
+          )}
+        </div>
+      )}
+
+      {linkOnly && (
+        <div className="space-y-4 rounded-2xl bg-card p-4 shadow-sm">
+          <div className="flex items-center gap-3 rounded-xl bg-primary/5 px-4 py-3">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-primary">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+            <p className="text-xs text-muted truncate">{url}</p>
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">Title</h4>
+            <input
+              type="text"
+              value={linkTitle}
+              onChange={(e) => setLinkTitle(e.target.value)}
+              placeholder="Give this recipe a name..."
+              autoFocus
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">Tags</h4>
+            <TagInput tags={tags} onChange={setTags} placeholder="e.g. quick, pasta, vegetarian..." />
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">
+              Categories
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {RECIPE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() =>
+                    setCategories((prev) =>
+                      prev.includes(cat)
+                        ? prev.filter((c) => c !== cat)
+                        : [...prev, cat]
+                    )
+                  }
+                  className={`rounded-full px-3.5 py-2 text-xs font-medium transition-colors active:scale-95 ${
+                    categories.includes(cat)
+                      ? "bg-primary text-white"
+                      : "border border-border bg-card text-muted active:text-foreground"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">Notes</h4>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add any personal notes, tips, or modifications..."
+              rows={3}
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-y"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setLinkOnly(false); setLinkTitle(""); }}
+              className="rounded-xl border border-border px-4 py-3 text-sm font-medium text-muted transition-all active:scale-[0.98] hover:border-primary hover:text-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || !linkTitle.trim()}
+              className="flex-1 rounded-xl bg-primary py-3.5 text-sm font-semibold text-white transition-all active:scale-[0.98] active:bg-primary/80 disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Link"}
+            </button>
+          </div>
         </div>
       )}
 

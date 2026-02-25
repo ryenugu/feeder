@@ -165,7 +165,7 @@ export default function RecipeDetailPage() {
 
   return (
     <div className="pb-24">
-      {recipe.image_url && (
+      {recipe.image_url ? (
         <div className="relative aspect-[4/3] w-full overflow-hidden">
           <Image
             src={recipe.image_url}
@@ -177,10 +177,18 @@ export default function RecipeDetailPage() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
         </div>
+      ) : (
+        <div className="relative flex aspect-[2/1] w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10">
+          <svg width="80" height="80" viewBox="0 0 64 64" fill="none" className="text-primary/25">
+            <ellipse cx="32" cy="36" rx="22" ry="10" stroke="currentColor" strokeWidth="2.5" />
+            <path d="M10 36c0-11 9.85-20 22-20s22 9 22 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            <ellipse cx="32" cy="36" rx="14" ry="6" stroke="currentColor" strokeWidth="1.5" opacity="0.5" />
+          </svg>
+        </div>
       )}
 
       <div
-        className={`${recipe.image_url ? "absolute top-0 left-0 right-0 safe-top" : "safe-top"} flex items-center justify-between p-4`}
+        className="absolute top-0 left-0 right-0 safe-top flex items-center justify-between p-4"
       >
         <button
           onClick={() => router.back()}
@@ -332,6 +340,33 @@ export default function RecipeDetailPage() {
             <ServingAdjuster servings={servings} onChange={setServings} />
           )}
         </div>
+
+        {/* Link-only recipe banner */}
+        {recipe.ingredients.length === 0 && recipe.instructions.length === 0 && recipe.source_url && (
+          <section className="mt-8">
+            <a
+              href={recipe.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-xl bg-primary/10 px-4 py-4 transition-colors hover:bg-primary/15 active:scale-[0.99]"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-white">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-primary">View Original Recipe</p>
+                <p className="truncate text-xs text-muted">{recipe.source_url}</p>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-primary/60">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </a>
+          </section>
+        )}
 
         {/* Ingredients */}
         {recipe.ingredients.length > 0 && (

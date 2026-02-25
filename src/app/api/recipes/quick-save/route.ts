@@ -33,14 +33,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
     }
 
-    const extracted = await extractRecipe(url);
-
-    const { createClient: createServerClient } = await import("@/lib/supabase/server");
-    const supabase = await createServerClient();
-
-    const { data, error } = await supabase
-      .from("recipes")
-      .insert({
+    let recipeData;
+    try {
+      const extracted = await extractRecipe(url);
+      recipeData = {
         user_id: userId,
         title: extracted.title,
         image_url: extracted.image_url,
@@ -53,7 +49,32 @@ export async function POST(request: NextRequest) {
         ingredients: extracted.ingredients,
         instructions: extracted.instructions,
         notes: extracted.notes,
-      })
+      };
+    } catch {
+      let hostname: string | null = null;
+      try { hostname = new URL(url).hostname.replace(/^www\./, ""); } catch { /* invalid url */ }
+      recipeData = {
+        user_id: userId,
+        title: hostname || url,
+        image_url: null,
+        source_url: url,
+        source_name: hostname,
+        total_time: null,
+        prep_time: null,
+        cook_time: null,
+        servings: null,
+        ingredients: [],
+        instructions: [],
+        notes: null,
+      };
+    }
+
+    const { createClient: createServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createServerClient();
+
+    const { data, error } = await supabase
+      .from("recipes")
+      .insert(recipeData)
       .select()
       .single();
 

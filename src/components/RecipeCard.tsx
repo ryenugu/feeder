@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Recipe } from "@/types/recipe";
 
-export default function RecipeCard({ recipe }: { recipe: Recipe }) {
+export default function RecipeCard({ recipe, priority }: { recipe: Recipe; priority?: boolean }) {
   const [imgError, setImgError] = useState(false);
 
   return (
@@ -21,22 +21,19 @@ export default function RecipeCard({ recipe }: { recipe: Recipe }) {
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"
             sizes="(max-width: 512px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            priority={priority}
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="flex h-full items-center justify-center">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="text-primary/40"
-            >
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
-              <path d="M15 8h.01M9 8h.01M8 14s1.5 2 4 2 4-2 4-2" />
+          <div className="flex h-full flex-col items-center justify-center gap-2.5 bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10">
+            <svg width="56" height="56" viewBox="0 0 64 64" fill="none" className="text-primary/30">
+              <ellipse cx="32" cy="36" rx="22" ry="10" stroke="currentColor" strokeWidth="2.5" />
+              <path d="M10 36c0-11 9.85-20 22-20s22 9 22 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              <ellipse cx="32" cy="36" rx="14" ry="6" stroke="currentColor" strokeWidth="1.5" opacity="0.5" />
             </svg>
+            <span className="text-[10px] font-medium tracking-wide text-primary/40 uppercase">
+              {recipe.ingredients.length === 0 && recipe.instructions.length === 0 ? "Link saved" : "No photo"}
+            </span>
           </div>
         )}
       </div>

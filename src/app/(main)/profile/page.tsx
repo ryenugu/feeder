@@ -204,6 +204,25 @@ export default function ProfilePage() {
 
         <hr className="border-border" />
 
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="mb-1 text-sm font-semibold">Contact Us</h3>
+            <p className="text-xs text-muted">Questions or feedback? Reach out</p>
+          </div>
+          <a
+            href="mailto:ryenugu@gmail.com"
+            className="flex items-center gap-1.5 rounded-xl bg-primary-light px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-white"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="M22 4L12 13 2 4" />
+            </svg>
+            Email
+          </a>
+        </div>
+
+        <hr className="border-border" />
+
         <button
           onClick={handleSignOut}
           className="w-full rounded-xl border border-red-200 bg-red-500/10 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/20 dark:border-red-900/30 dark:text-red-400"

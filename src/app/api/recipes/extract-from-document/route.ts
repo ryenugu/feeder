@@ -37,7 +37,7 @@ Rules:
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.FEEDER_ANTHROPIC_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
         { error: "Document extraction is not configured. Missing API key." },
@@ -73,7 +73,10 @@ export async function POST(request: NextRequest) {
     const buffer = await file.arrayBuffer();
     const base64 = Buffer.from(buffer).toString("base64");
 
-    const anthropic = new Anthropic({ apiKey });
+    const anthropic = new Anthropic({
+      apiKey,
+      baseURL: "https://api.anthropic.com",
+    });
 
     const content: Anthropic.ContentBlockParam[] =
       fileType === "pdf"

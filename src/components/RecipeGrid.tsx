@@ -289,8 +289,8 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
             {hasActiveSearch || hasActiveFilter ? " found" : ""}
           </p>
           <div className="grid grid-cols-2 gap-3">
-            {visibleRecipes.map((recipe) => (
-              <RecipeCard key={recipe.id} recipe={recipe} />
+            {visibleRecipes.map((recipe, i) => (
+              <RecipeCard key={recipe.id} recipe={recipe} priority={i < 4} />
             ))}
           </div>
           {hasMore && (
