@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ExtractedRecipe } from "@/types/recipe";
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB per file
+const MAX_FILES = 10;
 
 const ALLOWED_TYPES: Record<string, string> = {
   "application/pdf": "pdf",
@@ -12,7 +13,7 @@ const ALLOWED_TYPES: Record<string, string> = {
   "image/gif": "image",
 };
 
-const EXTRACTION_PROMPT = `Extract the recipe from this document. Return ONLY valid JSON with this exact structure, no other text:
+const EXTRACTION_PROMPT = `Extract the recipe from the provided content. All documents/images are pages of the SAME recipe. Combine information from all of them. Return ONLY valid JSON with this exact structure, no other text:
 
 {
   "title": "Recipe title",
@@ -27,13 +28,42 @@ const EXTRACTION_PROMPT = `Extract the recipe from this document. Return ONLY va
 }
 
 Rules:
-- Extract ALL ingredients and ALL instructions
+- Extract ALL ingredients and ALL instructions from ALL provided pages
 - Keep ingredient measurements and quantities exactly as written
 - Each instruction step should be a separate string
 - If a field is not found, use null
 - For servings, extract just the number
 - For times, use human-readable format like "30 min" or "1 hr 15 min"
 - Return ONLY the JSON object, no markdown fences or extra text`;
+
+function buildContentBlock(
+  file: File,
+  fileType: string,
+  base64: string
+): Anthropic.ContentBlockParam {
+  if (fileType === "pdf") {
+    return {
+      type: "document",
+      source: {
+        type: "base64",
+        media_type: "application/pdf",
+        data: base64,
+      },
+    };
+  }
+  return {
+    type: "image",
+    source: {
+      type: "base64",
+      media_type: file.type as
+        | "image/jpeg"
+        | "image/png"
+        | "image/webp"
+        | "image/gif",
+      data: base64,
+    },
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,62 +76,52 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    const files = formData.getAll("files") as File[];
 
-    if (!file) {
+    if (files.length === 0) {
       return NextResponse.json(
-        { error: "No file uploaded" },
+        { error: "No files uploaded" },
         { status: 400 }
       );
     }
 
-    if (file.size > MAX_FILE_SIZE) {
+    if (files.length > MAX_FILES) {
       return NextResponse.json(
-        { error: "File too large. Maximum size is 20MB." },
+        { error: `Too many files. Maximum is ${MAX_FILES}.` },
         { status: 400 }
       );
     }
 
-    const fileType = ALLOWED_TYPES[file.type];
-    if (!fileType) {
-      return NextResponse.json(
-        { error: "Unsupported file type. Please upload a PDF or image (JPEG, PNG, WebP, GIF)." },
-        { status: 400 }
-      );
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        return NextResponse.json(
+          { error: `File "${file.name}" is too large. Maximum size is 20MB per file.` },
+          { status: 400 }
+        );
+      }
+      if (!ALLOWED_TYPES[file.type]) {
+        return NextResponse.json(
+          { error: `File "${file.name}" has an unsupported type. Please upload PDFs or images (JPEG, PNG, WebP, GIF).` },
+          { status: 400 }
+        );
+      }
     }
 
-    const buffer = await file.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
+    const content: Anthropic.ContentBlockParam[] = [];
+
+    for (const file of files) {
+      const buffer = await file.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString("base64");
+      const fileType = ALLOWED_TYPES[file.type];
+      content.push(buildContentBlock(file, fileType, base64));
+    }
+
+    content.push({ type: "text", text: EXTRACTION_PROMPT });
 
     const anthropic = new Anthropic({
       apiKey,
       baseURL: "https://api.anthropic.com",
     });
-
-    const content: Anthropic.ContentBlockParam[] =
-      fileType === "pdf"
-        ? [
-            {
-              type: "document",
-              source: {
-                type: "base64",
-                media_type: "application/pdf",
-                data: base64,
-              },
-            },
-            { type: "text", text: EXTRACTION_PROMPT },
-          ]
-        : [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: file.type as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
-                data: base64,
-              },
-            },
-            { type: "text", text: EXTRACTION_PROMPT },
-          ];
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -122,11 +142,12 @@ export async function POST(request: NextRequest) {
 
     const parsed = JSON.parse(jsonStr);
 
+    const fileNames = files.map((f) => f.name).join(", ");
     const recipe: ExtractedRecipe = {
       title: parsed.title || "Untitled Recipe",
       image_url: parsed.image_url || null,
       source_url: "uploaded-document",
-      source_name: file.name,
+      source_name: fileNames,
       total_time: parsed.total_time || null,
       prep_time: parsed.prep_time || null,
       cook_time: parsed.cook_time || null,
@@ -138,7 +159,7 @@ export async function POST(request: NextRequest) {
 
     if (recipe.ingredients.length === 0 && recipe.instructions.length === 0) {
       return NextResponse.json(
-        { error: "Could not find recipe content in this document. Try a clearer image or PDF." },
+        { error: "Could not find recipe content in the uploaded documents. Try clearer images or PDFs." },
         { status: 422 }
       );
     }

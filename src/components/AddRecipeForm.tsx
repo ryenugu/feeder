@@ -8,24 +8,37 @@ import Image from "next/image";
 import TagInput from "./TagInput";
 
 type InputMode = "url" | "document";
+type MultiDocMode = "same" | "separate";
 
 const ACCEPTED_FILE_TYPES = ".pdf,.jpg,.jpeg,.png,.webp,.gif";
 const MAX_FILE_SIZE_MB = 20;
+const MAX_FILES = 10;
+
+const VALID_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
 
 export default function AddRecipeForm() {
   const [mode, setMode] = useState<InputMode>("url");
   const [url, setUrl] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [multiDocMode, setMultiDocMode] = useState<MultiDocMode>("same");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<ExtractedRecipe | null>(null);
+  const [batchPreviews, setBatchPreviews] = useState<ExtractedRecipe[]>([]);
   const [linkOnly, setLinkOnly] = useState(false);
   const [linkTitle, setLinkTitle] = useState("");
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -33,44 +46,49 @@ export default function AddRecipeForm() {
     setMode(newMode);
     setError(null);
     setPreview(null);
+    setBatchPreviews([]);
     setLinkOnly(false);
     setLinkTitle("");
-    setFile(null);
+    setFiles([]);
     setUrl("");
     setCategories([]);
     setTags([]);
     setNotes("");
+    setExtractionProgress("");
   }
 
-  function handleFileSelect(selected: File | null) {
-    if (!selected) return;
-
-    if (selected.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      setError(`File too large. Maximum size is ${MAX_FILE_SIZE_MB}MB.`);
-      return;
+  function handleFilesAdd(incoming: FileList | File[]) {
+    const newFiles: File[] = [];
+    for (const f of Array.from(incoming)) {
+      if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        setError(`"${f.name}" is too large. Maximum size is ${MAX_FILE_SIZE_MB}MB per file.`);
+        return;
+      }
+      if (!VALID_TYPES.includes(f.type)) {
+        setError(`"${f.name}" is not a supported file type. Use PDF or images.`);
+        return;
+      }
+      newFiles.push(f);
     }
-
-    const validTypes = [
-      "application/pdf",
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-      "image/gif",
-    ];
-    if (!validTypes.includes(selected.type)) {
-      setError("Unsupported file type. Please upload a PDF or image.");
-      return;
-    }
-
-    setFile(selected);
+    setFiles((prev) => {
+      const combined = [...prev, ...newFiles];
+      if (combined.length > MAX_FILES) {
+        setError(`Maximum ${MAX_FILES} files allowed.`);
+        return prev;
+      }
+      return combined;
+    });
     setError(null);
+  }
+
+  function removeFile(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    const dropped = e.dataTransfer.files[0];
-    handleFileSelect(dropped);
+    handleFilesAdd(e.dataTransfer.files);
   }
 
   function handleSaveAsLink() {
@@ -103,28 +121,54 @@ export default function AddRecipeForm() {
     }
   }
 
+  async function extractFiles(filesToExtract: File[]): Promise<ExtractedRecipe> {
+    const formData = new FormData();
+    for (const f of filesToExtract) {
+      formData.append("files", f);
+    }
+    const res = await fetch("/api/recipes/extract-from-document", {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to extract");
+    return data;
+  }
+
   async function handleExtractDocument(e: React.FormEvent) {
     e.preventDefault();
-    if (!file) return;
+    if (files.length === 0) return;
     setLoading(true);
     setError(null);
     setPreview(null);
+    setBatchPreviews([]);
+    setExtractionProgress("");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("/api/recipes/extract-from-document", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to extract");
-      setPreview(data);
+      if (files.length === 1 || multiDocMode === "same") {
+        setExtractionProgress(
+          files.length > 1
+            ? `Extracting recipe from ${files.length} documents...`
+            : "Extracting recipe..."
+        );
+        const recipe = await extractFiles(files);
+        setPreview(recipe);
+      } else {
+        const results: ExtractedRecipe[] = [];
+        for (let i = 0; i < files.length; i++) {
+          setExtractionProgress(
+            `Extracting recipe ${i + 1} of ${files.length}...`
+          );
+          const recipe = await extractFiles([files[i]]);
+          results.push(recipe);
+        }
+        setBatchPreviews(results);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
+      setExtractionProgress("");
     }
   }
 
@@ -175,9 +219,38 @@ export default function AddRecipeForm() {
     }
   }
 
-  function fileIcon() {
-    if (!file) return null;
-    if (file.type === "application/pdf") {
+  async function handleSaveBatch() {
+    if (batchPreviews.length === 0) return;
+    setSaving(true);
+    setError(null);
+
+    try {
+      for (const recipe of batchPreviews) {
+        const body = {
+          ...recipe,
+          categories,
+          tags: tags.length > 0 ? tags : null,
+          notes: notes.trim() || null,
+        };
+        const res = await fetch("/api/recipes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok)
+          throw new Error(data.error || `Failed to save "${recipe.title}"`);
+      }
+      router.refresh();
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save recipes");
+      setSaving(false);
+    }
+  }
+
+  function fileIcon(f: File) {
+    if (f.type === "application/pdf") {
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -286,7 +359,7 @@ export default function AddRecipeForm() {
             className={`cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
               dragOver
                 ? "border-primary bg-primary/5"
-                : file
+                : files.length > 0
                   ? "border-primary/40 bg-primary/5"
                   : "border-border hover:border-primary/40 hover:bg-primary/5"
             }`}
@@ -295,35 +368,24 @@ export default function AddRecipeForm() {
               ref={fileInputRef}
               type="file"
               accept={ACCEPTED_FILE_TYPES}
-              onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+              multiple
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  handleFilesAdd(e.target.files);
+                }
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
               className="hidden"
             />
 
-            {file ? (
-              <div className="flex items-center justify-center gap-3">
-                <span className="text-primary">{fileIcon()}</span>
-                <div className="text-left">
-                  <p className="text-sm font-medium truncate max-w-[200px]">
-                    {file.name}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {(file.size / 1024 / 1024).toFixed(1)} MB
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setFile(null);
-                    if (fileInputRef.current) fileInputRef.current.value = "";
-                  }}
-                  className="ml-2 rounded-full p-1 text-muted hover:bg-background hover:text-foreground"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
+            {files.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-primary">
+                  {files.length} {files.length === 1 ? "file" : "files"} selected
+                </p>
+                <p className="text-xs text-muted">
+                  Drop or tap to add more (max {MAX_FILES})
+                </p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -335,18 +397,76 @@ export default function AddRecipeForm() {
                   </svg>
                 </div>
                 <p className="text-sm font-medium">
-                  Drop a file here or tap to browse
+                  Drop files here or tap to browse
                 </p>
                 <p className="text-xs text-muted">
-                  PDF, JPEG, PNG, WebP, GIF &middot; Max {MAX_FILE_SIZE_MB}MB
+                  PDF, JPEG, PNG, WebP, GIF &middot; Max {MAX_FILE_SIZE_MB}MB per file
                 </p>
               </div>
             )}
           </div>
 
+          {/* File list */}
+          {files.length > 0 && (
+            <div className="space-y-1.5">
+              {files.map((f, i) => (
+                <div
+                  key={`${f.name}-${f.size}-${i}`}
+                  className="flex items-center gap-3 rounded-lg bg-card border border-border px-3 py-2"
+                >
+                  <span className="text-primary shrink-0">{fileIcon(f)}</span>
+                  <div className="min-w-0 flex-1 text-left">
+                    <p className="text-sm font-medium truncate">{f.name}</p>
+                    <p className="text-xs text-muted">
+                      {(f.size / 1024 / 1024).toFixed(1)} MB
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    className="shrink-0 rounded-full p-1 text-muted hover:bg-background hover:text-foreground"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Multi-doc toggle — only shown when 2+ files */}
+          {files.length > 1 && (
+            <div className="flex gap-1 rounded-xl bg-background p-1 border border-border">
+              <button
+                type="button"
+                onClick={() => setMultiDocMode("same")}
+                className={`flex-1 rounded-lg py-2 text-xs font-medium transition-colors ${
+                  multiDocMode === "same"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                Pages of same recipe
+              </button>
+              <button
+                type="button"
+                onClick={() => setMultiDocMode("separate")}
+                className={`flex-1 rounded-lg py-2 text-xs font-medium transition-colors ${
+                  multiDocMode === "separate"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                Each is a separate recipe
+              </button>
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={loading || !file}
+            disabled={loading || files.length === 0}
             className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] active:bg-primary/80 disabled:opacity-50"
           >
             {loading ? (
@@ -355,8 +475,10 @@ export default function AddRecipeForm() {
                   <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
                   <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                 </svg>
-                Extracting recipe...
+                {extractionProgress || "Extracting..."}
               </span>
+            ) : files.length > 1 && multiDocMode === "separate" ? (
+              `Extract ${files.length} Recipes`
             ) : (
               "Extract from Document"
             )}
@@ -595,6 +717,100 @@ export default function AddRecipeForm() {
             className="w-full rounded-xl bg-primary py-3.5 text-sm font-semibold text-white transition-all active:scale-[0.98] active:bg-primary/80 disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save Recipe"}
+          </button>
+        </div>
+      )}
+
+      {/* Batch preview — shown when extracting separate recipes from multiple docs */}
+      {batchPreviews.length > 0 && (
+        <div className="space-y-4">
+          <div className="rounded-xl bg-primary/5 border border-primary/20 px-4 py-3">
+            <p className="text-sm font-semibold text-primary">
+              {batchPreviews.length} {batchPreviews.length === 1 ? "recipe" : "recipes"} extracted
+            </p>
+            <p className="text-xs text-muted mt-0.5">
+              Review below, then save all at once.
+            </p>
+          </div>
+
+          {batchPreviews.map((bp, idx) => (
+            <div key={idx} className="rounded-2xl bg-card p-4 shadow-sm space-y-2">
+              <h3 className="text-base font-bold leading-snug">{bp.title}</h3>
+              {bp.source_name && (
+                <p className="text-xs text-muted">
+                  Uploaded: {bp.source_name}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-3 text-xs text-muted">
+                {bp.total_time && (
+                  <span className="rounded-full bg-primary-light px-2 py-0.5 text-primary">
+                    {bp.total_time}
+                  </span>
+                )}
+                {bp.servings && (
+                  <span className="rounded-full bg-primary-light px-2 py-0.5 text-primary">
+                    {bp.servings} servings
+                  </span>
+                )}
+                <span className="text-muted">
+                  {bp.ingredients.length} ingredients &middot; {bp.instructions.length} steps
+                </span>
+              </div>
+            </div>
+          ))}
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">Tags</h4>
+            <TagInput tags={tags} onChange={setTags} placeholder="Applied to all recipes..." />
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">
+              Categories
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {RECIPE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() =>
+                    setCategories((prev) =>
+                      prev.includes(cat)
+                        ? prev.filter((c) => c !== cat)
+                        : [...prev, cat]
+                    )
+                  }
+                  className={`rounded-full px-3.5 py-2 text-xs font-medium transition-colors active:scale-95 ${
+                    categories.includes(cat)
+                      ? "bg-primary text-white"
+                      : "border border-border bg-card text-muted active:text-foreground"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">Notes</h4>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Applied to all recipes..."
+              rows={3}
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-y"
+            />
+          </div>
+
+          <button
+            onClick={handleSaveBatch}
+            disabled={saving}
+            className="w-full rounded-xl bg-primary py-3.5 text-sm font-semibold text-white transition-all active:scale-[0.98] active:bg-primary/80 disabled:opacity-50"
+          >
+            {saving
+              ? "Saving..."
+              : `Save All ${batchPreviews.length} Recipes`}
           </button>
         </div>
       )}
