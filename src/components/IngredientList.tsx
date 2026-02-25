@@ -58,6 +58,8 @@ export default function IngredientList({
     [ingredients, ratio]
   );
 
+  const checkedCount = checked.size;
+
   function toggle(idx: number) {
     setChecked((prev) => {
       const next = new Set(prev);
@@ -68,44 +70,62 @@ export default function IngredientList({
   }
 
   return (
-    <div className="space-y-1">
-      {scaledIngredients.map((ing, i) => (
-        <button
-          key={i}
-          onClick={() => toggle(i)}
-          className={`flex w-full items-start gap-3 rounded-lg px-2 py-3 text-left transition-colors active:bg-primary-light/50 ${
-            checked.has(i) ? "opacity-50" : ""
-          }`}
-        >
-          <span
-            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-              checked.has(i)
-                ? "border-primary bg-primary"
-                : "border-border"
+    <div>
+      {checkedCount > 0 && (
+        <div className="mb-2 flex items-center justify-between px-2">
+          <span className="text-xs font-medium text-muted">
+            {checkedCount} of {ingredients.length} ready
+          </span>
+          <button
+            onClick={() => setChecked(new Set())}
+            className="text-xs text-muted transition-colors hover:text-foreground"
+          >
+            Reset
+          </button>
+        </div>
+      )}
+
+      <div className="space-y-0.5">
+        {scaledIngredients.map((ing, i) => (
+          <button
+            key={i}
+            onClick={() => toggle(i)}
+            className={`flex w-full items-center gap-3.5 rounded-xl px-3 py-3.5 text-left transition-all duration-200 active:bg-primary-light/50 ${
+              checked.has(i) ? "opacity-40" : ""
             }`}
           >
-            {checked.has(i) && (
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="white"
-                strokeWidth="3"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            )}
-          </span>
-          <span
-            className={`text-sm leading-relaxed ${
-              checked.has(i) ? "line-through" : ""
-            }`}
-          >
-            {ing}
-          </span>
-        </button>
-      ))}
+            <span
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${
+                checked.has(i)
+                  ? "border-primary bg-primary"
+                  : "border-border"
+              }`}
+            >
+              {checked.has(i) && (
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </span>
+            <span
+              className={`text-[15px] leading-relaxed transition-all duration-200 ${
+                checked.has(i) ? "line-through text-muted" : ""
+              }`}
+            >
+              {ing}
+            </span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -36,7 +36,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed bottom-20 left-1/2 z-[100] flex -translate-x-1/2 flex-col gap-2">
+      <div className="fixed left-1/2 z-[100] flex -translate-x-1/2 flex-col gap-2" style={{ bottom: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}>
         {toasts.map((toast) => (
           <ToastBubble key={toast.id} toast={toast} onDismiss={dismiss} />
         ))}
@@ -65,7 +65,7 @@ function ToastBubble({
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl bg-foreground px-4 py-3 text-sm text-background shadow-lg transition-all duration-300 ${
+      className={`flex max-w-[90vw] items-center gap-3 rounded-xl bg-foreground px-4 py-3 text-sm text-background shadow-lg transition-all duration-300 ${
         visible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
       }`}
     >

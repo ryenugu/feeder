@@ -22,7 +22,7 @@ export default function ProfilePage() {
   const [showKeys, setShowKeys] = useState(false);
   const router = useRouter();
   const supabase = createClient();
-  const { theme } = useTheme();
+  const { theme, preset, setPreset, presets } = useTheme();
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -110,6 +110,32 @@ export default function ProfilePage() {
           <ThemeToggle />
         </div>
 
+        <div>
+          <h3 className="mb-2 text-sm font-semibold">Theme</h3>
+          <div className="flex gap-2">
+            {presets.map((p) => (
+              <button
+                key={p.name}
+                onClick={() => setPreset(p)}
+                className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition-all active:scale-95 ${
+                  preset.name === p.name
+                    ? "ring-2 ring-primary bg-primary-light text-primary"
+                    : "border border-border bg-card text-muted hover:text-foreground"
+                }`}
+              >
+                <span
+                  className="h-3.5 w-3.5 rounded-full border border-border"
+                  style={{
+                    backgroundColor:
+                      theme === "dark" ? p.dark.primary : p.light.primary,
+                  }}
+                />
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <hr className="border-border" />
 
         <div>
@@ -163,7 +189,7 @@ export default function ProfilePage() {
                       </button>
                       <button
                         onClick={() => handleDeleteKey(key.id)}
-                        className="shrink-0 rounded-lg p-2 text-muted transition-colors hover:bg-red-500/10 hover:text-red-500"
+                        className="shrink-0 rounded-lg p-2 text-muted transition-colors hover:bg-error-light hover:text-error"
                         aria-label="Delete key"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -225,7 +251,7 @@ export default function ProfilePage() {
 
         <button
           onClick={handleSignOut}
-          className="w-full rounded-xl border border-red-200 bg-red-500/10 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/20 dark:border-red-900/30 dark:text-red-400"
+          className="w-full rounded-xl border border-error/20 bg-error-light py-2.5 text-sm font-medium text-error transition-colors hover:bg-error/10"
         >
           Sign Out
         </button>

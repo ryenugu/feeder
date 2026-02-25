@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/admin";
 import type { ExtractedRecipe } from "@/types/recipe";
 
 export const maxDuration = 60;
@@ -87,6 +88,13 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!isAdmin(user.email)) {
+      return NextResponse.json(
+        { error: "Only admins can use AI document extraction." },
+        { status: 403 }
+      );
     }
 
     let body: ExtractionRequest;

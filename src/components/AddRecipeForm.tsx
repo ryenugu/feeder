@@ -405,6 +405,9 @@ export default function AddRecipeForm() {
           <div className="flex gap-2">
             <input
               type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="Paste a recipe or YouTube URL..."
@@ -431,7 +434,7 @@ export default function AddRecipeForm() {
           </div>
           {!preview && !linkOnly && url && !loading && isYouTubeUrl(url) && !error && (
             <div className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2 text-xs text-primary">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-red-500">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-error">
                 <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/>
                 <path d="M9.545 15.568V8.432L15.818 12z" fill="white"/>
               </svg>
@@ -590,7 +593,7 @@ export default function AddRecipeForm() {
 
       {error && (
         <div className="space-y-3">
-          <div className="rounded-xl bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
+          <div className="rounded-xl bg-error-light p-4 text-sm text-error">
             {error}
           </div>
           {mode === "url" && !linkOnly && url && (

@@ -32,7 +32,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
       return (
         <div className="flex min-h-[50vh] flex-col items-center justify-center px-6 text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-error-light">
             <svg
               width="32"
               height="32"
@@ -40,7 +40,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
-              className="text-red-500"
+              className="text-error"
             >
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />

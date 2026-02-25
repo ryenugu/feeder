@@ -15,7 +15,7 @@ const SORT_LABELS: Record<SortOption, string> = {
   "z-a": "Z → A",
 };
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 4;
 
 function matchesSearch(recipe: Recipe, query: string): boolean {
   const q = query.toLowerCase();
@@ -141,6 +141,9 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
               setVisibleCount(PAGE_SIZE);
             }}
             placeholder="Search recipes, tags, ingredients..."
+            autoCapitalize="none"
+            autoCorrect="off"
+            enterKeyHint="search"
             className="w-full rounded-xl border border-border bg-card py-2.5 pl-10 pr-9 text-sm text-foreground placeholder:text-muted/60 search-shadow transition-all duration-200 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/10"
           />
           {hasActiveSearch && (
@@ -216,6 +219,7 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
             setVisibleCount(PAGE_SIZE);
           }}
           counts={counts}
+          totalCount={recipes.length}
         />
       </div>
 

@@ -27,7 +27,7 @@ export default function RecipeCard({ recipe, priority }: { recipe: Recipe; prior
   return (
     <Link
       href={`/recipe/${recipe.id}`}
-      className="group block overflow-hidden rounded-2xl bg-card card-shadow transition-all duration-300 hover:card-shadow-hover"
+      className="group block overflow-hidden rounded-2xl bg-card border border-border/60 transition-all duration-300 hover:border-border active:scale-[0.98]"
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden">
         {hasImage ? (
@@ -43,20 +43,17 @@ export default function RecipeCard({ recipe, priority }: { recipe: Recipe; prior
             unoptimized={recipe.image_url!.toLowerCase().endsWith(".jfif")}
           />
         ) : (
-          <>
-            <Image
-              src={defaultImage}
-              alt={recipe.title}
-              fill
-              placeholder="blur"
-              className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-              sizes="(max-width: 512px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              priority={priority}
-              loading={priority ? "eager" : "lazy"}
-            />
-          </>
+          <Image
+            src={defaultImage}
+            alt={recipe.title}
+            fill
+            placeholder="blur"
+            className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            sizes="(max-width: 512px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            priority={priority}
+            loading={priority ? "eager" : "lazy"}
+          />
         )}
-        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
       </div>
 
       <div className="px-3 pb-3.5 pt-2.5">

@@ -276,7 +276,7 @@ export default function MealPlanWeek() {
                               </Link>
                               <button
                                 onClick={() => removeEntry(entry.id)}
-                                className="shrink-0 p-1 text-muted hover:text-red-500"
+                                className="shrink-0 p-1 text-muted hover:text-error"
                                 aria-label="Remove"
                               >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -315,6 +315,9 @@ export default function MealPlanWeek() {
                       value={pickerSearch}
                       onChange={(e) => setPickerSearch(e.target.value)}
                       placeholder="Search recipes..."
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      enterKeyHint="search"
                       className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
                     />
 

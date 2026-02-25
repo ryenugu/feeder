@@ -83,15 +83,16 @@ export default function ShareSheet({
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] transition-opacity duration-250 ${
+        className={`fixed inset-0 z-50 backdrop-blur-[2px] transition-opacity duration-250 ${
           visible ? "opacity-100" : "opacity-0"
         }`}
+        style={{ backgroundColor: "var(--overlay)" }}
         onClick={close}
       />
 
       {/* Sheet */}
       <div
-        className={`fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-card px-5 pb-8 pt-4 shadow-2xl transition-transform duration-250 ease-out ${
+        className={`fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-2xl bg-card px-5 pb-8 pt-4 shadow-2xl transition-transform duration-250 ease-out safe-x ${
           visible ? "translate-y-0" : "translate-y-full"
         }`}
         style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}

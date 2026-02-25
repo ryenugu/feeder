@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -25,6 +25,8 @@ export default function RecipeDetailPage() {
   const [showShare, setShowShare] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState("");
+  const [wakeLockActive, setWakeLockActive] = useState(false);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -44,6 +46,29 @@ export default function RecipeDetailPage() {
     }
     load();
   }, [params.id]);
+
+  useEffect(() => {
+    return () => {
+      wakeLockRef.current?.release().catch(() => {});
+    };
+  }, []);
+
+  async function toggleWakeLock() {
+    if (wakeLockActive) {
+      try { await wakeLockRef.current?.release(); } catch {}
+      wakeLockRef.current = null;
+      setWakeLockActive(false);
+      return;
+    }
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request("screen");
+      setWakeLockActive(true);
+      wakeLockRef.current.addEventListener("release", () => {
+        setWakeLockActive(false);
+        wakeLockRef.current = null;
+      });
+    } catch {}
+  }
 
   async function handleDelete() {
     if (!recipe) return;
@@ -147,7 +172,7 @@ export default function RecipeDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-dvh items-center justify-center">
         <svg className="h-8 w-8 animate-spin text-primary" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
           <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
@@ -158,11 +183,11 @@ export default function RecipeDetailPage() {
 
   if (!recipe) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center px-4">
+      <div className="flex min-h-dvh flex-col items-center justify-center px-4">
         <p className="mb-4 text-lg font-semibold">Recipe not found</p>
         <button
           onClick={() => router.push("/")}
-          className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white"
+          className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white active:scale-[0.98]"
         >
           Go Home
         </button>
@@ -265,7 +290,7 @@ export default function RecipeDetailPage() {
               <hr className="my-1 border-border" />
               <button
                 onClick={handleDelete}
-                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-500/10 dark:text-red-400"
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-error hover:bg-error-light"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="3 6 5 6 21 6" />
@@ -359,35 +384,34 @@ export default function RecipeDetailPage() {
         </div>
 
         {/* Time & servings */}
-        <div className="mt-4 flex flex-wrap items-center gap-6">
-          {recipe.total_time && (
-            <div>
-              <p className="text-xs text-muted">Total Time</p>
-              <p className="text-base font-bold text-primary">
-                {recipe.total_time}
-              </p>
-            </div>
-          )}
-          {recipe.prep_time && (
-            <div>
-              <p className="text-xs text-muted">Prep</p>
-              <p className="text-base font-bold text-primary">
-                {recipe.prep_time}
-              </p>
-            </div>
-          )}
-          {recipe.cook_time && (
-            <div>
-              <p className="text-xs text-muted">Cook</p>
-              <p className="text-base font-bold text-primary">
-                {recipe.cook_time}
-              </p>
-            </div>
-          )}
-          {recipe.servings && (
-            <ServingAdjuster servings={servings} onChange={setServings} />
-          )}
-        </div>
+        {(recipe.total_time || recipe.prep_time || recipe.cook_time || recipe.servings) && (
+          <div className="mt-5 flex flex-wrap items-center gap-2.5">
+            {recipe.total_time && (
+              <div className="flex items-center gap-1.5 rounded-full bg-card border border-border px-3 py-1.5">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-primary">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span className="text-xs font-semibold">{recipe.total_time}</span>
+              </div>
+            )}
+            {recipe.prep_time && (
+              <div className="flex items-center gap-1.5 rounded-full bg-card border border-border px-3 py-1.5">
+                <span className="text-[10px] font-medium text-muted uppercase">Prep</span>
+                <span className="text-xs font-semibold">{recipe.prep_time}</span>
+              </div>
+            )}
+            {recipe.cook_time && (
+              <div className="flex items-center gap-1.5 rounded-full bg-card border border-border px-3 py-1.5">
+                <span className="text-[10px] font-medium text-muted uppercase">Cook</span>
+                <span className="text-xs font-semibold">{recipe.cook_time}</span>
+              </div>
+            )}
+            {recipe.servings && (
+              <ServingAdjuster servings={servings} onChange={setServings} />
+            )}
+          </div>
+        )}
 
         {/* Link-only recipe banner */}
         {recipe.ingredients.length === 0 && recipe.instructions.length === 0 && recipe.source_url && recipe.source_url !== "uploaded-document" && (
@@ -433,9 +457,45 @@ export default function RecipeDetailPage() {
         {/* Instructions */}
         {recipe.instructions.length > 0 && (
           <section className="mt-8">
-            <h2 className="mb-3 inline-block rounded-md bg-primary-light px-3 py-1 text-sm font-bold text-primary">
-              Instructions
-            </h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="inline-block rounded-md bg-primary-light px-3 py-1 text-sm font-bold text-primary">
+                Instructions
+              </h2>
+              <button
+                onClick={toggleWakeLock}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all duration-200 ${
+                  wakeLockActive
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  {wakeLockActive ? (
+                    <>
+                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                      <line x1="8" y1="21" x2="16" y2="21" />
+                      <line x1="12" y1="17" x2="12" y2="21" />
+                    </>
+                  ) : (
+                    <>
+                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                      <line x1="8" y1="21" x2="16" y2="21" />
+                      <line x1="12" y1="17" x2="12" y2="21" />
+                    </>
+                  )}
+                </svg>
+                {wakeLockActive ? "Screen on" : "Keep screen on"}
+              </button>
+            </div>
             <InstructionList instructions={recipe.instructions} />
           </section>
         )}

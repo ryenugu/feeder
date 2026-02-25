@@ -6,16 +6,16 @@ interface CategoryFilterProps {
   selected: RecipeCategory | null;
   onChange: (category: RecipeCategory | null) => void;
   counts?: Record<string, number>;
+  totalCount?: number;
 }
 
 export default function CategoryFilter({
   selected,
   onChange,
   counts,
+  totalCount,
 }: CategoryFilterProps) {
-  const allCount = counts
-    ? Object.values(counts).reduce((a, b) => a + b, 0)
-    : undefined;
+  const allCount = totalCount;
 
   return (
     <div className="no-scrollbar -mx-4 overflow-x-auto">
@@ -24,7 +24,7 @@ export default function CategoryFilter({
           onClick={() => onChange(null)}
           className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
             selected === null
-              ? "bg-primary text-white shadow-[0_2px_8px_rgba(45,139,94,0.25)]"
+              ? "bg-primary text-white primary-shadow"
               : "bg-card text-muted border border-border hover:border-border hover:text-foreground"
           }`}
         >
@@ -38,7 +38,7 @@ export default function CategoryFilter({
               onClick={() => onChange(selected === cat ? null : cat)}
               className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
                 selected === cat
-                  ? "bg-primary text-white shadow-[0_2px_8px_rgba(45,139,94,0.25)]"
+                  ? "bg-primary text-white primary-shadow"
                   : "bg-card text-muted border border-border hover:border-border hover:text-foreground"
               }`}
             >

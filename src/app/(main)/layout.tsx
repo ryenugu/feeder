@@ -9,7 +9,7 @@ export default function MainLayout({
 }) {
   return (
     <>
-      <main className="safe-top mx-auto min-h-screen max-w-lg pb-24 pt-4">
+      <main className="safe-top safe-x mx-auto min-h-dvh max-w-lg pb-24 pt-4">
         {children}
       </main>
       <Navbar />

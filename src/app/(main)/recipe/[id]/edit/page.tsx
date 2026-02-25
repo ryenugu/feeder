@@ -133,7 +133,7 @@ export default function EditRecipePage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
+        <div className="mb-4 rounded-xl bg-error-light p-4 text-sm text-error">
           {error}
         </div>
       )}
