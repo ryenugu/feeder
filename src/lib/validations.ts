@@ -25,6 +25,7 @@ export const recipeCreateSchema = z.object({
       ])
     )
     .default([]),
+  source_images: z.array(z.string().url()).default([]),
 });
 
 export const recipeUpdateSchema = recipeCreateSchema.partial();

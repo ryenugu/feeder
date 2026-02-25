@@ -25,6 +25,7 @@ export interface Recipe {
   notes: string | null;
   tags: string[] | null;
   categories: RecipeCategory[];
+  source_images: string[];
   created_at: string;
 }
 
@@ -50,4 +51,5 @@ export interface ExtractedRecipe {
   ingredients: string[];
   instructions: string[];
   notes: string | null;
+  source_images?: string[];
 }

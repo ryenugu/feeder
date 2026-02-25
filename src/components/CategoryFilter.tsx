@@ -18,14 +18,14 @@ export default function CategoryFilter({
     : undefined;
 
   return (
-    <div className="no-scrollbar -mx-4 overflow-x-auto pb-2">
+    <div className="no-scrollbar -mx-4 overflow-x-auto">
       <div className="inline-flex gap-2 px-4">
         <button
           onClick={() => onChange(null)}
-          className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors active:scale-95 ${
+          className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
             selected === null
-              ? "bg-primary text-white shadow-sm"
-              : "bg-card text-muted active:text-foreground border border-border"
+              ? "bg-primary text-white shadow-[0_2px_8px_rgba(45,139,94,0.25)]"
+              : "bg-card text-muted border border-border hover:border-border hover:text-foreground"
           }`}
         >
           All{allCount !== undefined ? ` (${allCount})` : ""}
@@ -36,10 +36,10 @@ export default function CategoryFilter({
             <button
               key={cat}
               onClick={() => onChange(selected === cat ? null : cat)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors active:scale-95 ${
+              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-medium transition-all duration-200 active:scale-[0.97] ${
                 selected === cat
-                  ? "bg-primary text-white shadow-sm"
-                  : "bg-card text-muted active:text-foreground border border-border"
+                  ? "bg-primary text-white shadow-[0_2px_8px_rgba(45,139,94,0.25)]"
+                  : "bg-card text-muted border border-border hover:border-border hover:text-foreground"
               }`}
             >
               {cat}
@@ -47,7 +47,7 @@ export default function CategoryFilter({
             </button>
           );
         })}
-        <div className="shrink-0 w-px" aria-hidden="true" />
+        <div className="shrink-0 w-2" aria-hidden="true" />
       </div>
     </div>
   );

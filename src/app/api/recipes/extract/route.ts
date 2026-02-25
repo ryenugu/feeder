@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractRecipe } from "@/lib/recipe-scraper";
 import { extractUrlSchema } from "@/lib/validations";
+import { isYouTubeUrl, extractRecipeFromVideo } from "@/lib/youtube";
 
 export const maxDuration = 60;
 
@@ -24,7 +25,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const recipe = await extractRecipe(parsedUrl.toString());
+    const urlStr = parsedUrl.toString();
+
+    if (isYouTubeUrl(urlStr)) {
+      const recipe = await extractRecipeFromVideo(urlStr);
+      return NextResponse.json(recipe);
+    }
+
+    const recipe = await extractRecipe(urlStr);
     return NextResponse.json(recipe);
   } catch (error) {
     console.error("Recipe extraction error:", error);

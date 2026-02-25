@@ -9,12 +9,12 @@ const tabs = [
     label: "Home",
     icon: (active: boolean) => (
       <svg
-        width="24"
-        height="24"
+        width="22"
+        height="22"
         viewBox="0 0 24 24"
         fill={active ? "currentColor" : "none"}
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
@@ -28,12 +28,12 @@ const tabs = [
     label: "Meal Plan",
     icon: (active: boolean) => (
       <svg
-        width="24"
-        height="24"
+        width="22"
+        height="22"
         viewBox="0 0 24 24"
         fill={active ? "currentColor" : "none"}
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
@@ -49,12 +49,12 @@ const tabs = [
     label: "Shop",
     icon: (active: boolean) => (
       <svg
-        width="24"
-        height="24"
+        width="22"
+        height="22"
         viewBox="0 0 24 24"
         fill={active ? "currentColor" : "none"}
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
@@ -74,12 +74,12 @@ const tabs = [
     label: "Profile",
     icon: (active: boolean) => (
       <svg
-        width="24"
-        height="24"
+        width="22"
+        height="22"
         viewBox="0 0 24 24"
         fill={active ? "currentColor" : "none"}
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
@@ -94,8 +94,8 @@ export default function Navbar() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md safe-x">
-      <div className="mx-auto flex max-w-lg items-center justify-around py-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl nav-shadow safe-x">
+      <div className="mx-auto flex max-w-lg items-center justify-around py-1.5">
         {tabs.map((tab) => {
           const isActive =
             tab.href === "/"
@@ -106,12 +106,17 @@ export default function Navbar() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 text-xs transition-colors active:scale-95 ${
+              className={`relative flex flex-col items-center gap-0.5 px-4 py-1.5 transition-colors duration-200 active:scale-95 ${
                 isActive ? "text-primary" : "text-muted"
               }`}
             >
               {tab.icon(isActive)}
-              <span className="font-medium">{tab.label}</span>
+              <span className={`text-[10px] ${isActive ? "font-semibold" : "font-medium"}`}>
+                {tab.label}
+              </span>
+              {isActive && (
+                <span className="absolute -top-1.5 h-[3px] w-5 rounded-full bg-primary" />
+              )}
             </Link>
           );
         })}

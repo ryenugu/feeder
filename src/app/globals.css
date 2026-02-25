@@ -1,36 +1,48 @@
 @import "tailwindcss";
 
 :root[data-theme="light"] {
-  --background: #fbf9f4;
-  --foreground: #1a1a1a;
+  --background: #faf8f5;
+  --foreground: #1c1917;
   --primary: #2d8b5e;
-  --primary-light: #e8f5ee;
+  --primary-light: #eef6f1;
   --accent: #e8734a;
-  --muted: #9ca3af;
+  --muted: #a1998f;
   --card: #ffffff;
-  --border: #e5e7eb;
+  --border: #ebe7e0;
+  --card-shadow: 0 1px 3px rgba(28, 25, 23, 0.04), 0 4px 12px rgba(28, 25, 23, 0.03);
+  --card-shadow-hover: 0 2px 8px rgba(28, 25, 23, 0.06), 0 8px 24px rgba(28, 25, 23, 0.06);
+  --search-shadow: 0 1px 2px rgba(28, 25, 23, 0.04);
+  --nav-shadow: 0 -1px 12px rgba(28, 25, 23, 0.04);
 }
 
 :root[data-theme="dark"] {
-  --background: #0f1419;
-  --foreground: #e6edf3;
+  --background: #111318;
+  --foreground: #e8e6e3;
   --primary: #3fb884;
-  --primary-light: #1a2f26;
+  --primary-light: #182a22;
   --accent: #ff8a65;
-  --muted: #8b949e;
-  --card: #1c2128;
-  --border: #30363d;
+  --muted: #7d7a75;
+  --card: #1a1d24;
+  --border: #2a2d35;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+  --card-shadow-hover: 0 2px 8px rgba(0, 0, 0, 0.16), 0 8px 24px rgba(0, 0, 0, 0.12);
+  --search-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --nav-shadow: 0 -1px 12px rgba(0, 0, 0, 0.2);
 }
 
 :root {
-  --background: #fbf9f4;
-  --foreground: #1a1a1a;
+  --background: #faf8f5;
+  --foreground: #1c1917;
   --primary: #2d8b5e;
-  --primary-light: #e8f5ee;
+  --primary-light: #eef6f1;
   --accent: #e8734a;
-  --muted: #9ca3af;
+  --muted: #a1998f;
   --card: #ffffff;
-  --border: #e5e7eb;
+  --border: #ebe7e0;
+  --card-shadow: 0 1px 3px rgba(28, 25, 23, 0.04), 0 4px 12px rgba(28, 25, 23, 0.03);
+  --card-shadow-hover: 0 2px 8px rgba(28, 25, 23, 0.06), 0 8px 24px rgba(28, 25, 23, 0.06);
+  --search-shadow: 0 1px 2px rgba(28, 25, 23, 0.04);
+  --nav-shadow: 0 -1px 12px rgba(28, 25, 23, 0.04);
 }
 
 @theme inline {
@@ -51,7 +63,7 @@ body {
   font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   overscroll-behavior-y: contain;
@@ -88,4 +100,20 @@ select {
 .safe-x {
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
+}
+
+.card-shadow {
+  box-shadow: var(--card-shadow);
+}
+
+.card-shadow-hover {
+  box-shadow: var(--card-shadow-hover);
+}
+
+.search-shadow {
+  box-shadow: var(--search-shadow);
+}
+
+.nav-shadow {
+  box-shadow: var(--nav-shadow);
 }

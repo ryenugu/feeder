@@ -224,23 +224,18 @@ check_supabase() {
     local quiet="${1:-}"
     [ -z "$quiet" ] && echo "🔍 Checking if Supabase is running..."
 
-    if command -v npx > /dev/null 2>&1; then
-        if npx supabase status > /dev/null 2>&1; then
-            if command -v curl > /dev/null 2>&1; then
-                if curl -s http://127.0.0.1:54321/rest/v1/ > /dev/null 2>&1; then
-                    [ -z "$quiet" ] && echo "✅ Supabase is running"
-                    return 0
-                fi
-            else
-                [ -z "$quiet" ] && echo "✅ Supabase is running"
-                return 0
-            fi
+    # Check Docker containers first (fast, doesn't hang)
+    if command -v docker > /dev/null 2>&1; then
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -qE "supabase_db|supabase_kong"; then
+            [ -z "$quiet" ] && echo "✅ Supabase is running"
+            return 0
         fi
     fi
 
-    if command -v docker > /dev/null 2>&1; then
-        if docker ps --format '{{.Names}}' 2>/dev/null | grep -qE "supabase|supabase_db|supabase_kong"; then
-            [ -z "$quiet" ] && echo "✅ Supabase containers are running"
+    # Fallback: try npx supabase status with a timeout to avoid hanging
+    if command -v npx > /dev/null 2>&1; then
+        if timeout 15 npx supabase status > /dev/null 2>&1; then
+            [ -z "$quiet" ] && echo "✅ Supabase is running"
             return 0
         fi
     fi

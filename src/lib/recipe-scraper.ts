@@ -86,6 +86,43 @@ function extractImage(raw: unknown): string | null {
   return null;
 }
 
+function looksLikeImageUrl(url: string): boolean {
+  try {
+    const { pathname } = new URL(url);
+    const lower = pathname.toLowerCase();
+    if (/\.(jpe?g|png|gif|webp|avif|svg|bmp|ico|jfif|tiff?)(\?|$)/i.test(url)) {
+      return true;
+    }
+    if (lower.endsWith("/") || lower === "" || /\.[a-z]{2,5}$/.test(lower) === false) {
+      const pathSegments = lower.split("/").filter(Boolean);
+      const last = pathSegments[pathSegments.length - 1] || "";
+      return last.includes("image") || last.includes("photo") || last.includes("thumb") || last.includes("img");
+    }
+    return !lower.endsWith(".html") && !lower.endsWith(".htm") && !lower.endsWith(".php") && !lower.endsWith(".asp") && !lower.endsWith(".aspx");
+  } catch {
+    return false;
+  }
+}
+
+function resolveImageUrl(imageUrl: string | null, baseUrl: string): string | null {
+  if (!imageUrl) return null;
+  try {
+    const resolved = new URL(imageUrl, baseUrl);
+    if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
+      return null;
+    }
+    if (resolved.href === baseUrl || resolved.href === baseUrl.replace(/\/$/, "")) {
+      return null;
+    }
+    if (!looksLikeImageUrl(resolved.href)) {
+      return null;
+    }
+    return resolved.href;
+  } catch {
+    return null;
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function findRecipeInJsonLd(data: any): any | null {
   if (!data) return null;
@@ -114,20 +151,47 @@ function findRecipeInJsonLd(data: any): any | null {
   return null;
 }
 
+function splitCommaSeparatedIngredients(ingredients: string[]): string[] {
+  if (ingredients.length > 3) return ingredients;
+
+  const result: string[] = [];
+  for (const item of ingredients) {
+    const commaCount = (item.match(/,/g) || []).length;
+    if (commaCount >= 3) {
+      const parts = item.split(",").map((s) => s.trim()).filter(Boolean);
+      result.push(...parts);
+    } else {
+      result.push(item);
+    }
+  }
+  return result;
+}
+
 function normalizeJsonLdRecipe(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recipe: any,
   url: string
 ): ExtractedRecipe {
-  const ingredients: string[] = Array.isArray(recipe.recipeIngredient)
-    ? recipe.recipeIngredient.map((i: string) =>
-        String(i).replace(/<[^>]*>/g, "").trim()
-      )
-    : [];
+  let ingredients: string[];
+
+  if (Array.isArray(recipe.recipeIngredient)) {
+    ingredients = recipe.recipeIngredient.map((i: string) =>
+      String(i).replace(/<[^>]*>/g, "").trim()
+    );
+  } else if (typeof recipe.recipeIngredient === "string") {
+    ingredients = recipe.recipeIngredient
+      .split(/,(?![^()]*\))/)
+      .map((s: string) => s.replace(/<[^>]*>/g, "").trim())
+      .filter(Boolean);
+  } else {
+    ingredients = [];
+  }
+
+  ingredients = splitCommaSeparatedIngredients(ingredients);
 
   return {
     title: recipe.name || "Untitled Recipe",
-    image_url: extractImage(recipe.image),
+    image_url: resolveImageUrl(extractImage(recipe.image), url),
     source_url: url,
     source_name: extractHostname(url),
     total_time: parseISODuration(recipe.totalTime),
@@ -143,9 +207,12 @@ function normalizeJsonLdRecipe(
 const INGREDIENT_SELECTORS = [
   '[class*="ingredient"] li',
   '[class*="ingredient"] p',
+  '[class*="ingredient"] td',
+  '[class*="ingredient"] tr',
   '[data-testid*="ingredient"] li',
   '[itemprop="recipeIngredient"]',
   ".recipe-ingredients li",
+  ".recipe-ingredients td",
   ".ingredients-list li",
   ".ingredient-list li",
   ".wprm-recipe-ingredient",
@@ -292,14 +359,14 @@ function extractFromHtml(
 
   return {
     title,
-    image_url: image,
+    image_url: resolveImageUrl(image, url),
     source_url: url,
     source_name: extractHostname(url),
     total_time: totalTime,
     prep_time: null,
     cook_time: null,
     servings,
-    ingredients: ingredients.slice(0, 50),
+    ingredients: splitCommaSeparatedIngredients(ingredients).slice(0, 50),
     instructions: instructions.slice(0, 30),
     notes: description,
   };

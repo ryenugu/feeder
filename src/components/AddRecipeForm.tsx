@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { ExtractedRecipe, RecipeCategory } from "@/types/recipe";
 import { RECIPE_CATEGORIES } from "@/types/recipe";
+import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
 import TagInput from "./TagInput";
 
@@ -22,6 +23,24 @@ const VALID_TYPES = [
   "image/gif",
 ];
 
+function isValidUrl(url: string): boolean {
+  try { new URL(url); return true; } catch { return false; }
+}
+
+function isYouTubeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.hostname === "www.youtube.com" ||
+      parsed.hostname === "youtube.com" ||
+      parsed.hostname === "youtu.be" ||
+      parsed.hostname === "m.youtube.com"
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default function AddRecipeForm() {
   const [mode, setMode] = useState<InputMode>("url");
   const [url, setUrl] = useState("");
@@ -39,6 +58,10 @@ export default function AddRecipeForm() {
   const [notes, setNotes] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState("");
+  const [previewImageError, setPreviewImageError] = useState(false);
+  const [docOnly, setDocOnly] = useState(false);
+  const [docOnlyTitle, setDocOnlyTitle] = useState("");
+  const [lastUploadedPaths, setLastUploadedPaths] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -49,6 +72,9 @@ export default function AddRecipeForm() {
     setBatchPreviews([]);
     setLinkOnly(false);
     setLinkTitle("");
+    setDocOnly(false);
+    setDocOnlyTitle("");
+    setLastUploadedPaths([]);
     setFiles([]);
     setUrl("");
     setCategories([]);
@@ -98,6 +124,13 @@ export default function AddRecipeForm() {
     setLinkTitle("");
   }
 
+  function handleSaveAsDocOnly() {
+    setError(null);
+    setPreview(null);
+    setDocOnly(true);
+    setDocOnlyTitle("");
+  }
+
   async function handleExtractUrl(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -113,6 +146,7 @@ export default function AddRecipeForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to extract");
+      setPreviewImageError(false);
       setPreview(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -121,14 +155,51 @@ export default function AddRecipeForm() {
     }
   }
 
-  async function extractFiles(filesToExtract: File[]): Promise<ExtractedRecipe> {
-    const formData = new FormData();
-    for (const f of filesToExtract) {
-      formData.append("files", f);
+  async function uploadToStorage(
+    filesToUpload: File[]
+  ): Promise<{ storage_paths: string[]; file_types: string[]; file_names: string[] }> {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
+
+    const batchId = crypto.randomUUID();
+    const storage_paths: string[] = [];
+    const file_types: string[] = [];
+    const file_names: string[] = [];
+
+    for (const file of filesToUpload) {
+      const rawExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const ext = rawExt === "jfif" ? "jpg" : rawExt;
+      const safeName = `${crypto.randomUUID()}.${ext}`;
+      const path = `${user.id}/${batchId}/${safeName}`;
+      const { error } = await supabase.storage
+        .from("recipe-images")
+        .upload(path, file);
+      if (error) throw new Error(`Failed to upload ${file.name}: ${error.message}`);
+      storage_paths.push(path);
+      file_types.push(file.type);
+      file_names.push(file.name);
     }
+
+    return { storage_paths, file_types, file_names };
+  }
+
+  async function extractFiles(filesToExtract: File[]): Promise<ExtractedRecipe> {
+    setExtractionProgress("Uploading files...");
+    const uploadResult = await uploadToStorage(filesToExtract);
+    setLastUploadedPaths(uploadResult.storage_paths);
+
+    setExtractionProgress(
+      filesToExtract.length > 1
+        ? `Extracting recipe from ${filesToExtract.length} documents...`
+        : "Extracting recipe..."
+    );
     const res = await fetch("/api/recipes/extract-from-document", {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(uploadResult),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to extract");
@@ -143,21 +214,17 @@ export default function AddRecipeForm() {
     setPreview(null);
     setBatchPreviews([]);
     setExtractionProgress("");
+    setPreviewImageError(false);
 
     try {
       if (files.length === 1 || multiDocMode === "same") {
-        setExtractionProgress(
-          files.length > 1
-            ? `Extracting recipe from ${files.length} documents...`
-            : "Extracting recipe..."
-        );
         const recipe = await extractFiles(files);
         setPreview(recipe);
       } else {
         const results: ExtractedRecipe[] = [];
         for (let i = 0; i < files.length; i++) {
           setExtractionProgress(
-            `Extracting recipe ${i + 1} of ${files.length}...`
+            `Uploading & extracting recipe ${i + 1} of ${files.length}...`
           );
           const recipe = await extractFiles([files[i]]);
           results.push(recipe);
@@ -173,35 +240,61 @@ export default function AddRecipeForm() {
   }
 
   async function handleSave() {
-    if (!preview && !linkOnly) return;
+    if (!preview && !linkOnly && !docOnly) return;
     if (linkOnly && !linkTitle.trim()) return;
+    if (docOnly && !docOnlyTitle.trim()) return;
     setSaving(true);
     setError(null);
 
-    const body = linkOnly
-      ? {
-          title: linkTitle.trim(),
-          source_url: url,
-          source_name: (() => {
-            try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
-          })(),
-          image_url: null,
-          total_time: null,
-          prep_time: null,
-          cook_time: null,
-          servings: null,
-          ingredients: [],
-          instructions: [],
-          categories,
-          tags: tags.length > 0 ? tags : null,
-          notes: notes.trim() || null,
-        }
-      : {
-          ...preview,
-          categories,
-          tags: tags.length > 0 ? tags : null,
-          notes: notes.trim() || null,
-        };
+    let body;
+    if (linkOnly) {
+      body = {
+        title: linkTitle.trim(),
+        source_url: url,
+        source_name: (() => {
+          try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
+        })(),
+        image_url: null,
+        total_time: null,
+        prep_time: null,
+        cook_time: null,
+        servings: null,
+        ingredients: [],
+        instructions: [],
+        categories,
+        tags: tags.length > 0 ? tags : null,
+        notes: notes.trim() || null,
+      };
+    } else if (docOnly) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const sourceImages = lastUploadedPaths.map(
+        (p) =>
+          `${supabaseUrl}/storage/v1/object/public/recipe-images/${p.split("/").map(encodeURIComponent).join("/")}`
+      );
+      body = {
+        title: docOnlyTitle.trim(),
+        source_url: "uploaded-document",
+        source_name: files.map((f) => f.name).join(", "),
+        image_url: null,
+        total_time: null,
+        prep_time: null,
+        cook_time: null,
+        servings: null,
+        ingredients: [],
+        instructions: [],
+        categories,
+        tags: tags.length > 0 ? tags : null,
+        notes: notes.trim() || null,
+        source_images: sourceImages,
+      };
+    } else {
+      body = {
+        ...preview,
+        categories,
+        tags: tags.length > 0 ? tags : null,
+        notes: notes.trim() || null,
+      };
+    }
 
     try {
       const res = await fetch("/api/recipes", {
@@ -211,8 +304,8 @@ export default function AddRecipeForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
-      router.refresh();
       router.push(`/recipe/${data.id}`);
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
       setSaving(false);
@@ -241,8 +334,8 @@ export default function AddRecipeForm() {
         if (!res.ok)
           throw new Error(data.error || `Failed to save "${recipe.title}"`);
       }
-      router.refresh();
       router.push("/");
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save recipes");
       setSaving(false);
@@ -314,7 +407,7 @@ export default function AddRecipeForm() {
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="Paste a recipe URL..."
+              placeholder="Paste a recipe or YouTube URL..."
               required
               className="flex-1 rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
@@ -329,14 +422,23 @@ export default function AddRecipeForm() {
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
                     <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
-                  Extracting
+                  {isYouTubeUrl(url) ? "Extracting from video" : "Extracting"}
                 </span>
               ) : (
                 "Extract"
               )}
             </button>
           </div>
-          {!preview && !linkOnly && url && !loading && (
+          {!preview && !linkOnly && url && !loading && isYouTubeUrl(url) && !error && (
+            <div className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2 text-xs text-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-red-500">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/>
+                <path d="M9.545 15.568V8.432L15.818 12z" fill="white"/>
+              </svg>
+              YouTube video detected — recipe will be extracted from transcript or description
+            </div>
+          )}
+          {!preview && !linkOnly && url && !loading && !isYouTubeUrl(url) && (
             <button
               type="button"
               onClick={handleSaveAsLink}
@@ -500,6 +602,15 @@ export default function AddRecipeForm() {
               Save as link only instead
             </button>
           )}
+          {mode === "document" && !docOnly && lastUploadedPaths.length > 0 && (
+            <button
+              type="button"
+              onClick={handleSaveAsDocOnly}
+              className="w-full rounded-xl border border-border bg-card py-3 text-sm font-medium text-foreground transition-all active:scale-[0.98] hover:border-primary"
+            >
+              Save as document only instead
+            </button>
+          )}
         </div>
       )}
 
@@ -587,10 +698,96 @@ export default function AddRecipeForm() {
         </div>
       )}
 
+      {docOnly && (
+        <div className="space-y-4 rounded-2xl bg-card p-4 shadow-sm">
+          <div className="flex items-center gap-3 rounded-xl bg-primary/5 px-4 py-3">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-primary">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            <p className="text-xs text-muted truncate">
+              {files.map((f) => f.name).join(", ")}
+            </p>
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">Title</h4>
+            <input
+              type="text"
+              value={docOnlyTitle}
+              onChange={(e) => setDocOnlyTitle(e.target.value)}
+              placeholder="Give this recipe a name..."
+              autoFocus
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">Tags</h4>
+            <TagInput tags={tags} onChange={setTags} placeholder="e.g. quick, pasta, vegetarian..." />
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">
+              Categories
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {RECIPE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() =>
+                    setCategories((prev) =>
+                      prev.includes(cat)
+                        ? prev.filter((c) => c !== cat)
+                        : [...prev, cat]
+                    )
+                  }
+                  className={`rounded-full px-3.5 py-2 text-xs font-medium transition-colors active:scale-95 ${
+                    categories.includes(cat)
+                      ? "bg-primary text-white"
+                      : "border border-border bg-card text-muted active:text-foreground"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-primary">Notes</h4>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add any personal notes, tips, or modifications..."
+              rows={3}
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-y"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setDocOnly(false); setDocOnlyTitle(""); }}
+              className="rounded-xl border border-border px-4 py-3 text-sm font-medium text-muted transition-all active:scale-[0.98] hover:border-primary hover:text-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || !docOnlyTitle.trim()}
+              className="flex-1 rounded-xl bg-primary py-3.5 text-sm font-semibold text-white transition-all active:scale-[0.98] active:bg-primary/80 disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Document"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {preview && (
         <div className="space-y-4 rounded-2xl bg-card p-4 shadow-sm">
           <div className="flex items-start gap-4">
-            {preview.image_url && (
+            {preview.image_url && isValidUrl(preview.image_url) && !previewImageError && (
               <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl">
                 <Image
                   src={preview.image_url}
@@ -598,6 +795,8 @@ export default function AddRecipeForm() {
                   fill
                   className="object-cover"
                   sizes="80px"
+                  unoptimized={preview.image_url.toLowerCase().endsWith(".jfif")}
+                  onError={() => setPreviewImageError(true)}
                 />
               </div>
             )}
@@ -609,7 +808,9 @@ export default function AddRecipeForm() {
                 <p className="mt-0.5 text-xs text-muted">
                   {preview.source_url === "uploaded-document"
                     ? `Uploaded: ${preview.source_name}`
-                    : preview.source_name}
+                    : preview.source_name === "youtube.com"
+                      ? "From YouTube video"
+                      : preview.source_name}
                 </p>
               )}
               <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted">

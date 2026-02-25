@@ -11,11 +11,13 @@ import InstructionList from "@/components/InstructionList";
 import ServingAdjuster from "@/components/ServingAdjuster";
 import { useToast } from "@/components/Toast";
 import ShareSheet from "@/components/ShareSheet";
+import defaultImage from "@/images/default.jpg";
 
 export default function RecipeDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { showToast } = useToast();
+  const [imgError, setImgError] = useState(false);
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [servings, setServings] = useState<number>(4);
   const [loading, setLoading] = useState(true);
@@ -48,7 +50,16 @@ export default function RecipeDetailPage() {
     const deletedRecipe = { ...recipe };
 
     setRecipe(null);
+
+    try {
+      await fetch(`/api/recipes/${params.id}`, { method: "DELETE" });
+    } catch {
+      setRecipe(deletedRecipe);
+      return;
+    }
+
     router.push("/");
+    router.refresh();
 
     showToast({
       message: "Recipe deleted",
@@ -74,6 +85,7 @@ export default function RecipeDetailPage() {
                 notes: deletedRecipe.notes,
                 tags: deletedRecipe.tags,
                 categories: deletedRecipe.categories,
+                source_images: deletedRecipe.source_images,
               }),
             });
             if (res.ok) {
@@ -87,12 +99,6 @@ export default function RecipeDetailPage() {
         },
       },
     });
-
-    try {
-      await fetch(`/api/recipes/${params.id}`, { method: "DELETE" });
-    } catch {
-      /* ignore */
-    }
   }
 
   async function handleCategoryToggle(cat: RecipeCategory) {
@@ -108,8 +114,9 @@ export default function RecipeDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ categories: updated }),
       });
+      router.refresh();
     } catch {
-      /* ignore */
+      setRecipe({ ...recipe, categories: current });
     }
   }
 
@@ -165,8 +172,8 @@ export default function RecipeDetailPage() {
 
   return (
     <div className="pb-24">
-      {recipe.image_url ? (
-        <div className="relative aspect-[4/3] w-full overflow-hidden">
+      <div className="relative aspect-[4/3] w-full overflow-hidden">
+        {recipe.image_url && !imgError ? (
           <Image
             src={recipe.image_url}
             alt={recipe.title}
@@ -174,18 +181,24 @@ export default function RecipeDetailPage() {
             className="object-cover"
             sizes="(max-width: 512px) 100vw, 512px"
             priority
+            loading="eager"
+            onError={() => setImgError(true)}
+            unoptimized={recipe.image_url.toLowerCase().endsWith(".jfif")}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-        </div>
-      ) : (
-        <div className="relative flex aspect-[2/1] w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10">
-          <svg width="80" height="80" viewBox="0 0 64 64" fill="none" className="text-primary/25">
-            <ellipse cx="32" cy="36" rx="22" ry="10" stroke="currentColor" strokeWidth="2.5" />
-            <path d="M10 36c0-11 9.85-20 22-20s22 9 22 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-            <ellipse cx="32" cy="36" rx="14" ry="6" stroke="currentColor" strokeWidth="1.5" opacity="0.5" />
-          </svg>
-        </div>
-      )}
+        ) : (
+          <Image
+            src={defaultImage}
+            alt={recipe.title}
+            fill
+            placeholder="blur"
+            className="object-cover"
+            sizes="(max-width: 512px) 100vw, 512px"
+            priority
+            loading="eager"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+      </div>
 
       <div
         className="absolute top-0 left-0 right-0 safe-top flex items-center justify-between p-4"
@@ -234,7 +247,7 @@ export default function RecipeDetailPage() {
                 </svg>
                 Share Recipe
               </button>
-              {recipe.source_url && (
+              {recipe.source_url && recipe.source_url !== "uploaded-document" && (
                 <a
                   href={recipe.source_url}
                   target="_blank"
@@ -268,7 +281,7 @@ export default function RecipeDetailPage() {
       <div className="relative -mt-4 rounded-t-3xl bg-background px-5 pt-6">
         <h1 className="text-2xl font-bold leading-tight">{recipe.title}</h1>
 
-        {recipe.source_name && (
+        {recipe.source_name && recipe.source_url !== "uploaded-document" && (
           <a
             href={recipe.source_url}
             target="_blank"
@@ -277,6 +290,41 @@ export default function RecipeDetailPage() {
           >
             Source: {recipe.source_name}
           </a>
+        )}
+
+        {/* Source images from document uploads */}
+        {recipe.source_images && recipe.source_images.length > 0 && (
+          <section className="mt-4">
+            <h2 className="mb-2 text-xs font-semibold text-muted uppercase tracking-wide">
+              Original Document
+            </h2>
+            <div className={`flex gap-2 overflow-x-auto no-scrollbar ${
+              recipe.source_images.length === 1 ? "" : "pb-2"
+            }`}>
+              {recipe.source_images.map((src, i) => (
+                <a
+                  key={i}
+                  href={src}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative shrink-0 overflow-hidden rounded-xl border border-border active:scale-[0.98] transition-transform"
+                  style={{
+                    width: recipe.source_images!.length === 1 ? "100%" : "200px",
+                    aspectRatio: "3/4",
+                  }}
+                >
+                  <Image
+                    src={src}
+                    alt={`Source page ${i + 1}`}
+                    fill
+                    className="object-cover"
+                    sizes={recipe.source_images!.length === 1 ? "100vw" : "200px"}
+                    unoptimized
+                  />
+                </a>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Tags */}
@@ -342,7 +390,7 @@ export default function RecipeDetailPage() {
         </div>
 
         {/* Link-only recipe banner */}
-        {recipe.ingredients.length === 0 && recipe.instructions.length === 0 && recipe.source_url && (
+        {recipe.ingredients.length === 0 && recipe.instructions.length === 0 && recipe.source_url && recipe.source_url !== "uploaded-document" && (
           <section className="mt-8">
             <a
               href={recipe.source_url}
@@ -428,6 +476,7 @@ export default function RecipeDetailPage() {
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ notes: trimmed || null }),
                       });
+                      router.refresh();
                     } catch { /* ignore */ }
                   }}
                   className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white"

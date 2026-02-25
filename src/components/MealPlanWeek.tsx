@@ -267,6 +267,7 @@ export default function MealPlanWeek() {
                                     fill
                                     className="object-cover"
                                     sizes="40px"
+                                    unoptimized={entry.recipe.image_url.toLowerCase().endsWith(".jfif")}
                                   />
                                 </Link>
                               )}
@@ -331,7 +332,7 @@ export default function MealPlanWeek() {
                           >
                             {r.image_url && (
                               <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md">
-                                <Image src={r.image_url} alt={r.title} fill className="object-cover" sizes="32px" />
+                                <Image src={r.image_url} alt={r.title} fill className="object-cover" sizes="32px" unoptimized={r.image_url.toLowerCase().endsWith(".jfif")} />
                               </div>
                             )}
                             <span className="truncate">{r.title}</span>
