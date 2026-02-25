@@ -25,10 +25,12 @@ export default function ShareSheet({
 
   useEffect(() => {
     if (open) {
-      requestAnimationFrame(() => setVisible(true));
-      setCopied(null);
+      requestAnimationFrame(() => {
+        setVisible(true);
+        setCopied(null);
+      });
     } else {
-      setVisible(false);
+      requestAnimationFrame(() => setVisible(false));
     }
   }, [open]);
 

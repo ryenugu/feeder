@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   const validSortFields = ["created_at", "title", "total_time"];
   const sortField = validSortFields.includes(sort) ? sort : "created_at";
 
-  let query = supabase
+  const query = supabase
     .from("recipes")
     .select("*", { count: "exact" })
     .eq("user_id", user.id)

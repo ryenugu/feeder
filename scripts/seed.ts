@@ -79,7 +79,7 @@ Rules:
 - Return ONLY the JSON object, no markdown fences`;
 
 async function uploadFixtureImages(
-  supabase: ReturnType<typeof createClient<any>>,
+  supabase: ReturnType<typeof createClient<Record<string, unknown>>>,
   imagePaths: string[],
   userId: string
 ): Promise<string[]> {
@@ -108,7 +108,7 @@ async function uploadFixtureImages(
 }
 
 async function extractFromImages(
-  supabase: ReturnType<typeof createClient<any>>,
+  supabase: ReturnType<typeof createClient<Record<string, unknown>>>,
   imagePaths: string[],
   userId: string
 ): Promise<ExtractedRecipe> {
