@@ -359,7 +359,7 @@ async function fetchHtml(url: string): Promise<string> {
     const response = await fetch(url, {
       headers,
       redirect: "follow",
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(10000),
     });
     if (response.ok) html = await response.text();
   } catch {
@@ -371,8 +371,8 @@ async function fetchHtml(url: string): Promise<string> {
       const { stdout } = await execFileAsync("curl", [
         "-sS",
         "-L",
-        "--max-time",
-        "15",
+      "--max-time",
+      "10",
         "--compressed",
         "-H",
         "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
