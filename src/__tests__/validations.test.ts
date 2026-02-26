@@ -34,12 +34,22 @@ describe("recipeCreateSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects invalid source_url", () => {
+  it("rejects empty source_url", () => {
     const result = recipeCreateSchema.safeParse({
       title: "Test",
-      source_url: "not-a-url",
+      source_url: "",
     });
     expect(result.success).toBe(false);
+  });
+
+  it("defaults source_url when omitted", () => {
+    const result = recipeCreateSchema.safeParse({
+      title: "Test",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.source_url).toBe("manual-entry");
+    }
   });
 
   it("accepts valid categories", () => {

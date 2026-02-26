@@ -33,22 +33,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     const storedMode = localStorage.getItem("theme") as Mode | null;
     const storedPresetName = localStorage.getItem("theme-preset");
-
     const resolvedPreset =
       THEME_PRESETS.find((p) => p.name === storedPresetName) || DEFAULT_PRESET;
-    setPresetState(resolvedPreset);
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    ).matches;
+    const mode = storedMode || (prefersDark ? "dark" : "light");
 
-    if (storedMode) {
-      setThemeState(storedMode);
-    } else {
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-      setThemeState(prefersDark ? "dark" : "light");
-    }
+    requestAnimationFrame(() => {
+      setPresetState(resolvedPreset);
+      setThemeState(mode);
+      setMounted(true);
+    });
   }, []);
 
   useEffect(() => {
