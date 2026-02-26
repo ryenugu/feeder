@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import type { MealPlanEntry } from "@/types/recipe";
+import Image from "next/image";
+import Link from "next/link";
 import GroceryList from "@/components/GroceryList";
 import CombinedShoppingList from "@/components/CombinedShoppingList";
 
@@ -212,10 +214,54 @@ export default function ShoppingListPage() {
             </div>
           ) : (
             <>
+              {/* Planned meals summary */}
+              <div className="mb-4 rounded-xl bg-card border border-border/60 p-3">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted">
+                  {entries.length} meal{entries.length !== 1 ? "s" : ""} this week
+                </p>
+                <div className="space-y-1.5">
+                  {entries.map((entry) => (
+                    <Link
+                      key={entry.id}
+                      href={`/recipe/${entry.recipe_id}`}
+                      className="flex items-center gap-2.5 rounded-lg px-1 py-1 transition-colors hover:bg-primary-light/50 active:scale-[0.99]"
+                    >
+                      {entry.recipe?.image_url ? (
+                        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md">
+                          <Image
+                            src={entry.recipe.image_url}
+                            alt={entry.recipe?.title || ""}
+                            fill
+                            className="object-cover"
+                            sizes="32px"
+                            unoptimized={entry.recipe.image_url.toLowerCase().endsWith(".jfif")}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary-light text-primary">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2" />
+                            <path d="M7 2v20" />
+                            <path d="M21 15V2v0a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3zm0 0v7" />
+                          </svg>
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{entry.recipe?.title || "Recipe"}</p>
+                        <p className="text-[11px] text-muted capitalize">
+                          {entry.meal_type} · {new Date(entry.planned_date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" })}
+                        </p>
+                      </div>
+                      <span className="text-[11px] text-muted">
+                        {entry.recipe?.ingredients?.length || 0} items
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
               <p className="mb-4 text-sm text-muted">
-                {uncheckedCount} item{uncheckedCount !== 1 ? "s" : ""} remaining
-                {" · "}
-                {entries.length} meal{entries.length !== 1 ? "s" : ""} planned
+                {uncheckedCount} ingredient{uncheckedCount !== 1 ? "s" : ""} remaining
               </p>
 
               <div className="space-y-1">
