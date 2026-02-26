@@ -343,7 +343,7 @@ export default function RecipeDetailPage() {
                 </svg>
                 Share Recipe
               </button>
-              {recipe.source_url && recipe.source_url !== "uploaded-document" && (
+              {recipe.source_url && recipe.source_url !== "uploaded-document" && recipe.source_url !== "manual-entry" && (
                 <a
                   href={recipe.source_url}
                   target="_blank"
@@ -377,7 +377,7 @@ export default function RecipeDetailPage() {
       <div className="relative -mt-4 rounded-t-3xl bg-background px-5 pt-6">
         <h1 className="text-2xl font-bold leading-tight">{recipe.title}</h1>
 
-        {recipe.source_name && recipe.source_url !== "uploaded-document" && (
+        {recipe.source_name && recipe.source_url !== "uploaded-document" && recipe.source_url !== "manual-entry" && (
           <a
             href={recipe.source_url}
             target="_blank"
@@ -485,7 +485,7 @@ export default function RecipeDetailPage() {
         )}
 
         {/* Link-only recipe banner */}
-        {recipe.ingredients.length === 0 && recipe.instructions.length === 0 && recipe.source_url && recipe.source_url !== "uploaded-document" && (
+        {recipe.ingredients.length === 0 && recipe.instructions.length === 0 && recipe.source_url && recipe.source_url !== "uploaded-document" && recipe.source_url !== "manual-entry" && (
           <section className="mt-8">
             <a
               href={recipe.source_url}

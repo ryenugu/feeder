@@ -3,7 +3,7 @@ import { z } from "zod";
 export const recipeCreateSchema = z.object({
   title: z.string().min(1, "Title is required").max(500),
   image_url: z.string().url().nullable().optional(),
-  source_url: z.string().url("Invalid source URL"),
+  source_url: z.string().min(1).default("manual-entry"),
   source_name: z.string().nullable().optional(),
   total_time: z.string().nullable().optional(),
   prep_time: z.string().nullable().optional(),

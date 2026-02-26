@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
 import TagInput from "./TagInput";
 
-type InputMode = "url" | "document";
+type InputMode = "url" | "document" | "manual";
 type MultiDocMode = "same" | "separate";
 
 const ACCEPTED_FILE_TYPES = ".pdf,.jpg,.jpeg,.png,.webp,.gif";
@@ -48,7 +48,18 @@ export default function AddRecipeForm() {
   const [docOnly, setDocOnly] = useState(false);
   const [docOnlyTitle, setDocOnlyTitle] = useState("");
   const [lastUploadedPaths, setLastUploadedPaths] = useState<string[]>([]);
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualImageUrl, setManualImageUrl] = useState("");
+  const [manualTotalTime, setManualTotalTime] = useState("");
+  const [manualPrepTime, setManualPrepTime] = useState("");
+  const [manualCookTime, setManualCookTime] = useState("");
+  const [manualServings, setManualServings] = useState("");
+  const [manualIngredients, setManualIngredients] = useState("");
+  const [manualInstructions, setManualInstructions] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imgPreviewError, setImgPreviewError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   function switchMode(newMode: InputMode) {
@@ -67,6 +78,15 @@ export default function AddRecipeForm() {
     setTags([]);
     setNotes("");
     setExtractionProgress("");
+    setManualTitle("");
+    setManualImageUrl("");
+    setManualTotalTime("");
+    setManualPrepTime("");
+    setManualCookTime("");
+    setManualServings("");
+    setManualIngredients("");
+    setManualInstructions("");
+    setImgPreviewError(false);
   }
 
   function handleFilesAdd(incoming: FileList | File[]) {
@@ -328,6 +348,80 @@ export default function AddRecipeForm() {
     }
   }
 
+  async function handleManualImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const rawExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const ext = rawExt === "jfif" ? "jpg" : rawExt;
+      const safeName = `${crypto.randomUUID()}.${ext}`;
+      const path = `${user.id}/covers/${safeName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("recipe-images")
+        .upload(path, file);
+      if (uploadError) throw uploadError;
+
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const publicUrl = `${supabaseUrl}/storage/v1/object/public/recipe-images/${path.split("/").map(encodeURIComponent).join("/")}`;
+      setManualImageUrl(publicUrl);
+      setImgPreviewError(false);
+    } catch {
+      setError("Failed to upload image");
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  }
+
+  async function handleSaveManual() {
+    if (!manualTitle.trim()) return;
+    setSaving(true);
+    setError(null);
+
+    const body = {
+      title: manualTitle.trim(),
+      source_url: "manual-entry",
+      source_name: null,
+      image_url: manualImageUrl.trim() || null,
+      total_time: manualTotalTime.trim() || null,
+      prep_time: manualPrepTime.trim() || null,
+      cook_time: manualCookTime.trim() || null,
+      servings: manualServings ? parseInt(manualServings) : null,
+      ingredients: manualIngredients
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      instructions: manualInstructions
+        .split(/\n\n+/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+      categories,
+      tags: tags.length > 0 ? tags : null,
+      notes: notes.trim() || null,
+    };
+
+    try {
+      const res = await fetch("/api/recipes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save");
+      router.push(`/recipe/${data.id}`);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+      setSaving(false);
+    }
+  }
+
   function fileIcon(f: File) {
     if (f.type === "application/pdf") {
       return (
@@ -366,7 +460,7 @@ export default function AddRecipeForm() {
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
           </svg>
-          From URL
+          URL
         </button>
         <button
           type="button"
@@ -381,7 +475,22 @@ export default function AddRecipeForm() {
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
           </svg>
-          From Document
+          Document
+        </button>
+        <button
+          type="button"
+          onClick={() => switchMode("manual")}
+          className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors ${
+            mode === "manual"
+              ? "bg-primary text-white shadow-sm"
+              : "text-muted hover:text-foreground"
+          }`}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+          Manual
         </button>
       </div>
 
@@ -566,6 +675,215 @@ export default function AddRecipeForm() {
             )}
           </button>
         </form>
+      )}
+
+      {/* Manual entry form */}
+      {mode === "manual" && (
+        <div className="space-y-5">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-muted">Title *</label>
+            <input
+              type="text"
+              value={manualTitle}
+              onChange={(e) => setManualTitle(e.target.value)}
+              placeholder="Recipe name"
+              autoFocus
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-muted">Recipe Photo</label>
+            <div className="relative overflow-hidden rounded-xl border border-border bg-card">
+              {manualImageUrl && !imgPreviewError ? (
+                <div className="relative aspect-[4/3] w-full">
+                  <Image
+                    src={manualImageUrl}
+                    alt="Recipe preview"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 512px) 100vw, 512px"
+                    onError={() => setImgPreviewError(true)}
+                    unoptimized={manualImageUrl.toLowerCase().endsWith(".jfif")}
+                  />
+                </div>
+              ) : (
+                <div
+                  onClick={() => imageInputRef.current?.click()}
+                  className="flex cursor-pointer flex-col items-center justify-center gap-2 py-8 text-muted hover:text-primary transition-colors"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  <span className="text-xs font-medium">Add Photo</span>
+                </div>
+              )}
+
+              {uploadingImage && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40">
+                  <svg className="h-8 w-8 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                    <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                </div>
+              )}
+
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleManualImageUpload}
+              />
+
+              {manualImageUrl && !imgPreviewError && (
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-card/90 px-3 py-2 text-xs font-medium text-foreground shadow-md backdrop-blur-sm active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  Change
+                </button>
+              )}
+            </div>
+            {manualImageUrl && (
+              <button
+                type="button"
+                onClick={() => { setManualImageUrl(""); setImgPreviewError(false); }}
+                className="mt-2 text-xs text-muted hover:text-error transition-colors"
+              >
+                Remove photo
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-muted">Total Time</label>
+              <input
+                type="text"
+                value={manualTotalTime}
+                onChange={(e) => setManualTotalTime(e.target.value)}
+                placeholder="30 min"
+                className="w-full rounded-xl border border-border bg-card px-3 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-muted">Prep Time</label>
+              <input
+                type="text"
+                value={manualPrepTime}
+                onChange={(e) => setManualPrepTime(e.target.value)}
+                placeholder="10 min"
+                className="w-full rounded-xl border border-border bg-card px-3 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-muted">Cook Time</label>
+              <input
+                type="text"
+                value={manualCookTime}
+                onChange={(e) => setManualCookTime(e.target.value)}
+                placeholder="20 min"
+                className="w-full rounded-xl border border-border bg-card px-3 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-muted">Servings</label>
+            <input
+              type="number"
+              value={manualServings}
+              onChange={(e) => setManualServings(e.target.value)}
+              min="1"
+              placeholder="4"
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-muted">
+              Ingredients (one per line)
+            </label>
+            <textarea
+              value={manualIngredients}
+              onChange={(e) => setManualIngredients(e.target.value)}
+              rows={6}
+              placeholder={"1 cup flour\n2 eggs\n1/2 cup milk"}
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm leading-relaxed outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-muted">
+              Instructions (separate steps with blank lines)
+            </label>
+            <textarea
+              value={manualInstructions}
+              onChange={(e) => setManualInstructions(e.target.value)}
+              rows={8}
+              placeholder={"Preheat oven to 350°F.\n\nMix dry ingredients in a large bowl.\n\nAdd wet ingredients and stir until combined."}
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm leading-relaxed outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-muted">Tags</label>
+            <TagInput tags={tags} onChange={setTags} placeholder="e.g. quick, pasta, vegetarian..." />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-muted">Categories</label>
+            <div className="flex flex-wrap gap-2">
+              {RECIPE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() =>
+                    setCategories((prev) =>
+                      prev.includes(cat)
+                        ? prev.filter((c) => c !== cat)
+                        : [...prev, cat]
+                    )
+                  }
+                  className={`rounded-full px-3.5 py-2 text-xs font-medium transition-colors active:scale-95 ${
+                    categories.includes(cat)
+                      ? "bg-primary text-white"
+                      : "border border-border bg-card text-muted active:text-foreground"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-muted">Notes</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add any personal notes, tips, or modifications..."
+              rows={3}
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm leading-relaxed outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-y"
+            />
+          </div>
+
+          <button
+            onClick={handleSaveManual}
+            disabled={saving || !manualTitle.trim()}
+            className="w-full rounded-xl bg-primary py-3.5 text-sm font-semibold text-white transition-all active:scale-[0.98] active:bg-primary/80 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save Recipe"}
+          </button>
+        </div>
       )}
 
       {error && (
