@@ -521,7 +521,7 @@ function parseInstagramCaption(raw: string): {
       // A single bullet can contain multiple steps squashed together
       const steps = part.split(/(?=\b\d+\.\s)/).map((s) => s.trim()).filter(Boolean);
       for (const step of steps) {
-        const m = step.match(/^\d+\.\s+(.+)/s);
+        const m = step.match(/^\d+\.\s+([\s\S]+)/);
         if (m) instructions.push(m[1].trim());
       }
       continue;
