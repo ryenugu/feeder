@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface GroceryItem {
   id: string;
@@ -34,6 +34,9 @@ export default function CombinedShoppingList({
   const [stores, setStores] = useState<GroceryStore[]>([]);
   const [groceryLoading, setGroceryLoading] = useState(true);
   const [bought, setBought] = useState<Set<string>>(new Set());
+  const [quickAddValue, setQuickAddValue] = useState("");
+  const [adding, setAdding] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const fetchStores = useCallback(async () => {
     try {
@@ -49,6 +52,53 @@ export default function CombinedShoppingList({
   useEffect(() => {
     fetchStores();
   }, [fetchStores]);
+
+  async function handleQuickAdd() {
+    const name = quickAddValue.trim();
+    if (!name || adding) return;
+    setAdding(true);
+    try {
+      // Find or create a "Quick Add" store
+      let storeId = stores.find(
+        (s) => s.name.toLowerCase() === "quick add"
+      )?.id;
+
+      if (!storeId) {
+        const storeRes = await fetch("/api/groceries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "store", name: "Quick Add" }),
+        });
+        if (storeRes.ok) {
+          const newStore = await storeRes.json();
+          storeId = newStore.id;
+        }
+      }
+
+      if (!storeId) return;
+
+      // Create the item
+      const itemRes = await fetch("/api/groceries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "item", store_id: storeId, name }),
+      });
+
+      if (itemRes.ok) {
+        const newItem = await itemRes.json();
+        // Mark as checked so it shows in the All view
+        await fetch("/api/groceries", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "item", id: newItem.id, checked: true }),
+        });
+        setQuickAddValue("");
+        await fetchStores();
+        inputRef.current?.focus();
+      }
+    } catch { /* ignore */ }
+    finally { setAdding(false); }
+  }
 
   function toggleBought(key: string) {
     setBought((prev) => {
@@ -100,25 +150,68 @@ export default function CombinedShoppingList({
 
   if (totalItems === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-light">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary">
-            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
-            <rect x="9" y="3" width="6" height="4" rx="1" />
-            <line x1="9" y1="12" x2="15" y2="12" />
-            <line x1="9" y1="16" x2="13" y2="16" />
-          </svg>
+      <div>
+        <div className="mb-6 flex gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={quickAddValue}
+            onChange={(e) => setQuickAddValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleQuickAdd(); }}
+            placeholder="Add an item..."
+            autoCapitalize="none"
+            autoCorrect="off"
+            className="flex-1 rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm placeholder:text-muted/60 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/10"
+          />
+          <button
+            onClick={handleQuickAdd}
+            disabled={!quickAddValue.trim() || adding}
+            className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90 disabled:opacity-40"
+          >
+            {adding ? "..." : "Add"}
+          </button>
         </div>
-        <h2 className="mb-1 text-lg font-semibold">Nothing to buy</h2>
-        <p className="text-sm text-muted">
-          Check off items in the Groceries tab or plan meals to build your list
-        </p>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-light">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+              <rect x="9" y="3" width="6" height="4" rx="1" />
+              <line x1="9" y1="12" x2="15" y2="12" />
+              <line x1="9" y1="16" x2="13" y2="16" />
+            </svg>
+          </div>
+          <h2 className="mb-1 text-lg font-semibold">Nothing to buy</h2>
+          <p className="text-sm text-muted">
+            Add items above, check off items in the Groceries tab, or plan meals
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div>
+      <div className="mb-3 flex gap-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={quickAddValue}
+          onChange={(e) => setQuickAddValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleQuickAdd(); }}
+          placeholder="Add an item..."
+          autoCapitalize="none"
+          autoCorrect="off"
+          className="flex-1 rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm placeholder:text-muted/60 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/10"
+        />
+        <button
+          onClick={handleQuickAdd}
+          disabled={!quickAddValue.trim() || adding}
+          className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90 disabled:opacity-40"
+        >
+          {adding ? "..." : "Add"}
+        </button>
+      </div>
+
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-muted">
           {totalRemaining} item{totalRemaining !== 1 ? "s" : ""} remaining

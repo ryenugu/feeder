@@ -63,7 +63,7 @@ export default async function HomePage() {
               alt="Feeder — your family recipe collection"
               placeholder="blur"
               priority
-              className="h-36 w-full object-cover object-[50%_65%]"
+              className="h-36 w-full object-cover object-[50%_55%]"
             />
             <div className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/20 to-transparent" />
           </div>
