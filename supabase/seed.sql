@@ -101,3 +101,12 @@ INSERT INTO auth.identities (
   now(),
   now()
 );
+
+-- Seed family: link the two dev users as a family
+INSERT INTO public.families (id, invite_code, created_at)
+VALUES ('f0f0f0f0-aaaa-bbbb-cccc-dddddddddddd', 'FAM123', now());
+
+INSERT INTO public.family_members (family_id, user_id, role, joined_at)
+VALUES
+  ('f0f0f0f0-aaaa-bbbb-cccc-dddddddddddd', '10f283d5-45da-44e7-be6c-c63c9d721013', 'owner', now()),
+  ('f0f0f0f0-aaaa-bbbb-cccc-dddddddddddd', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'member', now());

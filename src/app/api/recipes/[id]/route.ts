@@ -21,7 +21,6 @@ export async function GET(
     .from("recipes")
     .select("*")
     .eq("id", id)
-    .eq("user_id", user.id)
     .single();
 
   if (error) {
@@ -48,8 +47,7 @@ export async function DELETE(
   const { error } = await supabase
     .from("recipes")
     .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -87,7 +85,6 @@ export async function PATCH(
     .from("recipes")
     .update(parsed.data)
     .eq("id", id)
-    .eq("user_id", user.id)
     .select()
     .single();
 

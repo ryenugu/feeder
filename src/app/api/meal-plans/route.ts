@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from("meal_plans")
     .select("*, recipe:recipes(*)")
-    .eq("user_id", user.id)
     .order("planned_date", { ascending: true });
 
   if (startDate) query = query.gte("planned_date", startDate);
@@ -70,6 +69,37 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(data, { status: 201 });
 }
 
+export async function PATCH(request: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const { id, assigned_to } = body;
+
+  if (!id) {
+    return NextResponse.json({ error: "ID is required" }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from("meal_plans")
+    .update({ assigned_to: assigned_to || null })
+    .eq("id", id)
+    .select("*, recipe:recipes(*)")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}
+
 export async function DELETE(request: NextRequest) {
   const supabase = await createClient();
   const {
@@ -90,8 +120,7 @@ export async function DELETE(request: NextRequest) {
   const { error } = await supabase
     .from("meal_plans")
     .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

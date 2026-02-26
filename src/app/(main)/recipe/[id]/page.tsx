@@ -30,6 +30,8 @@ export default function RecipeDetailPage() {
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const [addedByEmail, setAddedByEmail] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -40,6 +42,24 @@ export default function RecipeDetailPage() {
           setRecipe(data);
           if (data.servings) setServings(data.servings);
           setNotesValue(data.notes || "");
+
+          const supabaseForUser = createClient();
+          const { data: { user } } = await supabaseForUser.auth.getUser();
+          if (user) {
+            setCurrentUserId(user.id);
+            if (data.user_id !== user.id) {
+              try {
+                const familyRes = await fetch("/api/family");
+                if (familyRes.ok) {
+                  const familyData = await familyRes.json();
+                  const partner = familyData.family?.members?.find(
+                    (m: { user_id: string }) => m.user_id === data.user_id
+                  );
+                  if (partner?.email) setAddedByEmail(partner.email);
+                }
+              } catch { /* ignore */ }
+            }
+          }
         }
       } catch {
         /* ignore */
@@ -376,6 +396,17 @@ export default function RecipeDetailPage() {
 
       <div className="relative -mt-4 rounded-t-3xl bg-background px-5 pt-6">
         <h1 className="text-2xl font-bold leading-tight">{recipe.title}</h1>
+
+        {addedByEmail && (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white">
+              {addedByEmail[0].toUpperCase()}
+            </div>
+            <span className="text-xs text-muted">
+              Added by {addedByEmail.split("@")[0]}
+            </span>
+          </div>
+        )}
 
         {recipe.source_name && recipe.source_url !== "uploaded-document" && recipe.source_url !== "manual" && (
           <a

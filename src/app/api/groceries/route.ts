@@ -20,7 +20,6 @@ export async function GET() {
   const { data: stores, error: storesError } = await supabase
     .from("grocery_stores")
     .select("*")
-    .eq("user_id", user.id)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -31,7 +30,6 @@ export async function GET() {
   const { data: items, error: itemsError } = await supabase
     .from("grocery_items")
     .select("*")
-    .eq("user_id", user.id)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -124,7 +122,6 @@ export async function PATCH(request: NextRequest) {
     const { error } = await supabase
       .from("grocery_items")
       .update({ checked: false })
-      .eq("user_id", user.id)
       .eq("checked", true);
 
     if (error) {
@@ -148,7 +145,6 @@ export async function PATCH(request: NextRequest) {
       .from("grocery_stores")
       .update(updates)
       .eq("id", id)
-      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -173,7 +169,6 @@ export async function PATCH(request: NextRequest) {
       .from("grocery_items")
       .update(updates)
       .eq("id", id)
-      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -214,8 +209,7 @@ export async function DELETE(request: NextRequest) {
   const { error } = await supabase
     .from(table)
     .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

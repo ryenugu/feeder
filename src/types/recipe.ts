@@ -35,6 +35,7 @@ export interface MealPlanEntry {
   recipe_id: string;
   planned_date: string;
   meal_type: "breakfast" | "lunch" | "dinner" | "snack";
+  assigned_to: string | null;
   created_at: string;
   recipe?: Recipe;
 }

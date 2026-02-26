@@ -25,9 +25,13 @@ interface RecipeCardProps {
   recipe: Recipe;
   priority?: boolean;
   onDelete?: (id: string) => void;
+  currentUserId?: string;
+  userMap?: Record<string, string>;
+  isFavorited?: boolean;
+  onToggleFavorite?: (recipeId: string, favorited: boolean) => void;
 }
 
-export default function RecipeCard({ recipe, priority, onDelete }: RecipeCardProps) {
+export default function RecipeCard({ recipe, priority, onDelete, currentUserId, userMap, isFavorited, onToggleFavorite }: RecipeCardProps) {
   const [imgError, setImgError] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -35,6 +39,30 @@ export default function RecipeCard({ recipe, priority, onDelete }: RecipeCardPro
   const { showToast } = useToast();
   const hasImage = recipe.image_url && !imgError;
   const displaySource = recipe.source_name ? formatSourceName(recipe.source_name) : null;
+  const [favAnimating, setFavAnimating] = useState(false);
+
+  async function handleFavorite(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setFavAnimating(true);
+    setTimeout(() => setFavAnimating(false), 300);
+    try {
+      const res = await fetch("/api/favorites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipe_id: recipe.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onToggleFavorite?.(recipe.id, data.favorited);
+      }
+    } catch { /* ignore */ }
+  }
+
+  const isShared = currentUserId && userMap && Object.keys(userMap).length > 1;
+  const addedByOther = isShared && recipe.user_id !== currentUserId;
+  const addedByEmail = addedByOther ? userMap[recipe.user_id] : null;
+  const addedByInitial = addedByEmail ? addedByEmail[0].toUpperCase() : null;
 
   useEffect(() => {
     if (!showMenu) return;
@@ -160,7 +188,23 @@ export default function RecipeCard({ recipe, priority, onDelete }: RecipeCardPro
             loading={priority ? "eager" : "lazy"}
           />
         )}
+        <button
+          onClick={handleFavorite}
+          className={`absolute left-2 bottom-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm transition-transform active:scale-90 ${favAnimating ? "scale-125" : ""}`}
+          aria-label={isFavorited ? "Unfavorite" : "Favorite"}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill={isFavorited ? "#ef4444" : "none"} stroke={isFavorited ? "#ef4444" : "white"} strokeWidth="2">
+            <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+          </svg>
+        </button>
       </div>
+
+      {addedByInitial && (
+        <div className="absolute left-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white shadow-md" title={addedByEmail || undefined}>
+          {addedByInitial}
+        </div>
+      )}
+
 
       <div ref={menuRef} className="absolute right-2 top-2 z-20">
         <button

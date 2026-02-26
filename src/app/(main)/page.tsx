@@ -8,12 +8,41 @@ import coverImage from "@/images/c4355a99-7f7a-4525-a862-bd7861c8b8c2.jpg";
 
 export default async function HomePage() {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   const { data: recipes } = await supabase
     .from("recipes")
     .select("*")
     .order("created_at", { ascending: false });
 
   const typedRecipes = (recipes || []) as Recipe[];
+
+  // Build a user_id -> email map for family attribution
+  let userMap: Record<string, string> = {};
+  if (user) {
+    userMap[user.id] = user.email || "You";
+    const { data: membership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (membership) {
+      const { data: members } = await supabase
+        .from("family_members")
+        .select("user_id")
+        .eq("family_id", membership.family_id);
+
+      for (const m of members || []) {
+        if (m.user_id !== user.id) {
+          const { data: email } = await supabase.rpc("get_user_email", {
+            target_user_id: m.user_id,
+          });
+          userMap[m.user_id] = email || "Family";
+        }
+      }
+    }
+  }
 
   return (
     <div>
@@ -52,7 +81,7 @@ export default async function HomePage() {
       </div>
 
       <div className="px-4">
-        <RecipeGrid recipes={typedRecipes} />
+        <RecipeGrid recipes={typedRecipes} currentUserId={user?.id} userMap={userMap} />
       </div>
     </div>
   );

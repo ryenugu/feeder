@@ -34,6 +34,7 @@ export const mealPlanCreateSchema = z.object({
   recipe_id: z.string().uuid("Invalid recipe ID"),
   planned_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
   meal_type: z.enum(["breakfast", "lunch", "dinner", "snack"]),
+  assigned_to: z.string().uuid().nullable().optional(),
 });
 
 export const extractUrlSchema = z.object({

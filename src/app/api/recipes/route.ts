@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from("recipes")
     .select("*", { count: "exact" })
-    .eq("user_id", user.id)
     .order(sortField, { ascending: order === "asc" })
     .range(from, to);
 

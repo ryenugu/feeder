@@ -5,6 +5,12 @@ import type { Recipe, MealPlanEntry } from "@/types/recipe";
 import Image from "next/image";
 import Link from "next/link";
 
+interface FamilyMember {
+  user_id: string;
+  email?: string;
+  role: string;
+}
+
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 type MealType = (typeof MEAL_TYPES)[number];
 
@@ -71,6 +77,7 @@ export default function MealPlanWeek() {
   const [pickerMealType, setPickerMealType] = useState<MealType>("dinner");
   const [pickerSearch, setPickerSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
 
   const dates = getWeekDates(weekOffset);
 
@@ -108,6 +115,19 @@ export default function MealPlanWeek() {
     fetchRecipes();
   }, [fetchRecipes]);
 
+  useEffect(() => {
+    async function loadFamily() {
+      try {
+        const res = await fetch("/api/family");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.family?.members) setFamilyMembers(data.family.members);
+        }
+      } catch { /* ignore */ }
+    }
+    loadFamily();
+  }, []);
+
   async function addToDay(recipeId: string, date: string, mealType: MealType) {
     try {
       const res = await fetch("/api/meal-plans", {
@@ -128,6 +148,31 @@ export default function MealPlanWeek() {
     }
     setShowPicker(null);
     setPickerSearch("");
+  }
+
+  async function toggleAssignment(entry: MealPlanEntry) {
+    if (familyMembers.length < 2) return;
+    const memberIds = familyMembers.map((m) => m.user_id);
+    const currentIdx = entry.assigned_to ? memberIds.indexOf(entry.assigned_to) : -1;
+    const nextIdx = (currentIdx + 1) % (memberIds.length + 1);
+    const nextAssigned = nextIdx < memberIds.length ? memberIds[nextIdx] : null;
+
+    setEntries((prev) =>
+      prev.map((e) => (e.id === entry.id ? { ...e, assigned_to: nextAssigned } : e))
+    );
+    try {
+      await fetch("/api/meal-plans", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: entry.id, assigned_to: nextAssigned }),
+      });
+    } catch { /* ignore */ }
+  }
+
+  function getAssignedEmail(userId: string | null): string | null {
+    if (!userId) return null;
+    const member = familyMembers.find((m) => m.user_id === userId);
+    return member?.email || null;
   }
 
   async function removeEntry(entryId: string) {
@@ -254,7 +299,9 @@ export default function MealPlanWeek() {
                           <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wider text-muted">
                             {MEAL_TYPE_ICONS[mealType]} {MEAL_TYPE_LABELS[mealType]}
                           </p>
-                          {typeEntries.map((entry) => (
+                          {typeEntries.map((entry) => {
+                            const assignedEmail = getAssignedEmail(entry.assigned_to);
+                            return (
                             <div
                               key={entry.id}
                               className="flex items-center gap-3 rounded-lg px-2 py-1.5"
@@ -274,6 +321,20 @@ export default function MealPlanWeek() {
                               <Link href={`/recipe/${entry.recipe_id}`} className="min-w-0 flex-1 truncate text-sm font-medium hover:text-primary">
                                 {entry.recipe?.title || "Recipe"}
                               </Link>
+                              {familyMembers.length >= 2 && (
+                                <button
+                                  onClick={() => toggleAssignment(entry)}
+                                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold transition-all active:scale-90 ${
+                                    assignedEmail
+                                      ? "bg-primary text-white"
+                                      : "border border-dashed border-muted text-muted"
+                                  }`}
+                                  title={assignedEmail ? `Assigned to ${assignedEmail.split("@")[0]}` : "Tap to assign"}
+                                  aria-label={assignedEmail ? `Assigned to ${assignedEmail.split("@")[0]}` : "Assign cook"}
+                                >
+                                  {assignedEmail ? assignedEmail[0].toUpperCase() : "?"}
+                                </button>
+                              )}
                               <button
                                 onClick={() => removeEntry(entry.id)}
                                 className="shrink-0 p-1 text-muted hover:text-error"
@@ -285,7 +346,8 @@ export default function MealPlanWeek() {
                                 </svg>
                               </button>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       );
                     })}

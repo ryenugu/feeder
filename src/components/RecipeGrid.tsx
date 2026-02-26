@@ -54,7 +54,13 @@ function sortRecipes(recipes: Recipe[], sort: SortOption): Recipe[] {
   }
 }
 
-export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
+interface RecipeGridProps {
+  recipes: Recipe[];
+  currentUserId?: string;
+  userMap?: Record<string, string>;
+}
+
+export default function RecipeGrid({ recipes, currentUserId, userMap }: RecipeGridProps) {
   const [localRecipes, setLocalRecipes] = useState(recipes);
   const [selectedCategory, setSelectedCategory] =
     useState<RecipeCategory | null>(null);
@@ -62,11 +68,35 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [showSort, setShowSort] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setLocalRecipes(recipes);
   }, [recipes]);
+
+  useEffect(() => {
+    async function loadFavorites() {
+      try {
+        const res = await fetch("/api/favorites");
+        if (res.ok) {
+          const ids: string[] = await res.json();
+          setFavoriteIds(new Set(ids));
+        }
+      } catch { /* ignore */ }
+    }
+    loadFavorites();
+  }, []);
+
+  function handleToggleFavorite(recipeId: string, favorited: boolean) {
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (favorited) next.add(recipeId);
+      else next.delete(recipeId);
+      return next;
+    });
+  }
 
   function handleDeleteRecipe(id: string) {
     setLocalRecipes((prev) => prev.filter((r) => r.id !== id));
@@ -85,6 +115,10 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
   const filtered = useMemo(() => {
     let result = localRecipes;
 
+    if (showFavoritesOnly) {
+      result = result.filter((r) => favoriteIds.has(r.id));
+    }
+
     if (searchQuery.trim()) {
       result = result.filter((r) => matchesSearch(r, searchQuery.trim()));
     }
@@ -96,7 +130,7 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
     }
 
     return sortRecipes(result, sortBy);
-  }, [localRecipes, selectedCategory, searchQuery, sortBy]);
+  }, [localRecipes, selectedCategory, searchQuery, sortBy, showFavoritesOnly, favoriteIds]);
 
   const visibleRecipes = useMemo(
     () => filtered.slice(0, visibleCount),
@@ -124,7 +158,7 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
   );
 
   const hasActiveSearch = searchQuery.trim().length > 0;
-  const hasActiveFilter = selectedCategory !== null;
+  const hasActiveFilter = selectedCategory !== null || showFavoritesOnly;
 
   return (
     <div>
@@ -171,6 +205,23 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
             </button>
           )}
         </div>
+
+        <button
+          onClick={() => {
+            setShowFavoritesOnly((v) => !v);
+            setVisibleCount(PAGE_SIZE);
+          }}
+          className={`flex h-[42px] w-[42px] items-center justify-center rounded-xl border bg-card transition-all duration-200 ${
+            showFavoritesOnly
+              ? "border-primary/30 text-primary"
+              : "border-border text-muted hover:text-foreground"
+          }`}
+          aria-label="Show favorites"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill={showFavoritesOnly ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+            <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+          </svg>
+        </button>
 
         <div className="relative">
           <button
@@ -261,6 +312,7 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
                 onClick={() => {
                   setSearchQuery("");
                   setSelectedCategory(null);
+                  setShowFavoritesOnly(false);
                 }}
                 className="rounded-xl bg-primary-light px-5 py-2.5 text-[13px] font-semibold text-primary transition-colors hover:bg-primary/15"
               >
@@ -314,7 +366,7 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
           </p>
           <div className="grid grid-cols-2 gap-3.5">
             {visibleRecipes.map((recipe, i) => (
-              <RecipeCard key={recipe.id} recipe={recipe} priority={i < 4} onDelete={handleDeleteRecipe} />
+              <RecipeCard key={recipe.id} recipe={recipe} priority={i < 4} onDelete={handleDeleteRecipe} currentUserId={currentUserId} userMap={userMap} isFavorited={favoriteIds.has(recipe.id)} onToggleFavorite={handleToggleFavorite} />
             ))}
           </div>
           {hasMore && (

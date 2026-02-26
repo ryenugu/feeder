@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/components/Toast";
+import FamilySection from "@/components/FamilySection";
 
 interface ApiKey {
   id: string;
@@ -105,6 +106,8 @@ export default function ProfilePage() {
         <p className="text-xs text-muted">Signed in as</p>
         <p className="text-sm font-medium">{email || "Loading..."}</p>
       </div>
+
+      <FamilySection currentUserEmail={email} />
 
       <div className="rounded-2xl bg-card p-5 shadow-sm">
         <button
