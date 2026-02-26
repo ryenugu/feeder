@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Status = "saving" | "success" | "error" | "no-url";
 
 export default function ShareTargetPage() {
+  return (
+    <Suspense>
+      <ShareTargetContent />
+    </Suspense>
+  );
+}
+
+function ShareTargetContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<Status>("saving");
