@@ -28,9 +28,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (family.members.length >= 2) {
+  if (family.members.length >= 4) {
     return NextResponse.json(
-      { error: "Family already has 2 members" },
+      { error: "Family already has 4 members" },
       { status: 400 }
     );
   }

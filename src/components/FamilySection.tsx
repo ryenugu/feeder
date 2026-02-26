@@ -165,7 +165,7 @@ export default function FamilySection({ currentUserEmail }: { currentUserEmail: 
           <h2 className="text-sm font-semibold">Family</h2>
           {family && (
             <span className="rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-medium text-primary">
-              {family.members.length}/2
+              {family.members.length}/4
             </span>
           )}
         </div>
@@ -286,7 +286,7 @@ export default function FamilySection({ currentUserEmail }: { currentUserEmail: 
               </div>
 
               {/* Invite code */}
-              {family.members.length < 2 && (
+              {family.members.length < 4 && (
                 <div className="rounded-xl bg-primary-light/50 p-3">
                   <p className="mb-1.5 text-xs font-semibold text-primary">
                     Invite Code

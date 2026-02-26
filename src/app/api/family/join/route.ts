@@ -48,9 +48,9 @@ export async function POST(request: NextRequest) {
     .select("id")
     .eq("family_id", family.id);
 
-  if (existingMembers && existingMembers.length >= 2) {
+  if (existingMembers && existingMembers.length >= 4) {
     return NextResponse.json(
-      { error: "This family already has 2 members" },
+      { error: "This family already has 4 members" },
       { status: 400 }
     );
   }
