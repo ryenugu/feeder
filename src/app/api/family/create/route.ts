@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateInviteCode, getCurrentFamily } from "@/lib/family";
+import crypto from "crypto";
 
 export async function POST() {
   const supabase = await createClient();
@@ -33,11 +34,13 @@ export async function POST() {
     attempts++;
   }
 
-  const { data: family, error: familyError } = await supabase
+  // Generate UUID upfront so we can reference it in both inserts
+  // without needing .select() (which RLS blocks before we're a member).
+  const familyId = crypto.randomUUID();
+
+  const { error: familyError } = await supabase
     .from("families")
-    .insert({ invite_code: inviteCode })
-    .select()
-    .single();
+    .insert({ id: familyId, invite_code: inviteCode });
 
   if (familyError) {
     return NextResponse.json(
@@ -47,21 +50,21 @@ export async function POST() {
   }
 
   const { error: memberError } = await supabase.from("family_members").insert({
-    family_id: family.id,
+    family_id: familyId,
     user_id: user.id,
     role: "owner",
   });
 
   if (memberError) {
-    await supabase.from("families").delete().eq("id", family.id);
+    await supabase.from("families").delete().eq("id", familyId);
     return NextResponse.json(
       { error: memberError.message },
       { status: 500 }
     );
   }
 
-  return NextResponse.json(
-    { family: { ...family, members: [{ user_id: user.id, role: "owner", email: user.email }] } },
-    { status: 201 }
-  );
+  // Now that we're in family_members, RLS lets us read the family back.
+  const family = await getCurrentFamily(supabase, user.id);
+
+  return NextResponse.json({ family }, { status: 201 });
 }
