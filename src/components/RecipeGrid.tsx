@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import type { Recipe, RecipeCategory } from "@/types/recipe";
 import RecipeCard from "./RecipeCard";
@@ -15,7 +15,7 @@ const SORT_LABELS: Record<SortOption, string> = {
   "z-a": "Z → A",
 };
 
-const PAGE_SIZE = 4;
+const PAGE_SIZE = 24;
 
 function matchesSearch(recipe: Recipe, query: string): boolean {
   const q = query.toLowerCase();
@@ -55,6 +55,7 @@ function sortRecipes(recipes: Recipe[], sort: SortOption): Recipe[] {
 }
 
 export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
+  const [localRecipes, setLocalRecipes] = useState(recipes);
   const [selectedCategory, setSelectedCategory] =
     useState<RecipeCategory | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,18 +64,26 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    setLocalRecipes(recipes);
+  }, [recipes]);
+
+  function handleDeleteRecipe(id: string) {
+    setLocalRecipes((prev) => prev.filter((r) => r.id !== id));
+  }
+
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const r of recipes) {
+    for (const r of localRecipes) {
       for (const cat of r.categories || []) {
         map[cat] = (map[cat] || 0) + 1;
       }
     }
     return map;
-  }, [recipes]);
+  }, [localRecipes]);
 
   const filtered = useMemo(() => {
-    let result = recipes;
+    let result = localRecipes;
 
     if (searchQuery.trim()) {
       result = result.filter((r) => matchesSearch(r, searchQuery.trim()));
@@ -87,7 +96,7 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
     }
 
     return sortRecipes(result, sortBy);
-  }, [recipes, selectedCategory, searchQuery, sortBy]);
+  }, [localRecipes, selectedCategory, searchQuery, sortBy]);
 
   const visibleRecipes = useMemo(
     () => filtered.slice(0, visibleCount),
@@ -219,7 +228,7 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
             setVisibleCount(PAGE_SIZE);
           }}
           counts={counts}
-          totalCount={recipes.length}
+          totalCount={localRecipes.length}
         />
       </div>
 
@@ -305,7 +314,7 @@ export default function RecipeGrid({ recipes }: { recipes: Recipe[] }) {
           </p>
           <div className="grid grid-cols-2 gap-3.5">
             {visibleRecipes.map((recipe, i) => (
-              <RecipeCard key={recipe.id} recipe={recipe} priority={i < 4} />
+              <RecipeCard key={recipe.id} recipe={recipe} priority={i < 4} onDelete={handleDeleteRecipe} />
             ))}
           </div>
           {hasMore && (

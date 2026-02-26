@@ -36,8 +36,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Network-first for page navigations — always get fresh data
-  if (request.mode === "navigate") {
+  const isRSCRequest = request.headers.get('RSC') === '1' || request.headers.get('Next-Router-State-Tree') || url.searchParams.has('_rsc');
+
+  // Network-first for page navigations and RSC requests — always get fresh data
+  if (request.mode === "navigate" || isRSCRequest) {
     event.respondWith(
       fetch(request)
         .then((response) => {

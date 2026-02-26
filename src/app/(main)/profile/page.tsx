@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { isAdmin } from "@/lib/admin";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -26,8 +27,8 @@ export default function ProfilePage() {
   const { showToast } = useToast();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setEmail(user?.email || null);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setEmail(session?.user?.email || null);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -104,6 +105,32 @@ export default function ProfilePage() {
           <p className="text-sm font-medium">{email || "Loading..."}</p>
         </div>
 
+        {isAdmin(email) && (
+          <>
+            <hr className="border-border" />
+            <button
+              onClick={() => router.push("/profile/admin")}
+              className="flex w-full items-center justify-between rounded-xl bg-primary-light px-4 py-3 transition-colors hover:bg-primary/15 active:scale-[0.98]"
+            >
+              <div className="flex items-center gap-3">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-primary">Admin Dashboard</p>
+                  <p className="text-[11px] text-muted">Users, metrics &amp; analytics</p>
+                </div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary/60">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </>
+        )}
+
         <hr className="border-border" />
 
         <div className="flex items-center justify-between">
@@ -145,18 +172,36 @@ export default function ProfilePage() {
         <hr className="border-border" />
 
         <div>
+          <h3 className="mb-3 text-sm font-semibold">Quick Save from Share Sheet</h3>
+
+          <div className="mb-3 rounded-xl bg-primary-light/50 p-3">
+            <div className="mb-1 flex items-center gap-1.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-primary">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.019-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="currentColor"/>
+                <path d="M20.52 3.449C18.24 1.245 15.24 0 12.05 0 5.495 0 .16 5.335.157 11.892c-.001 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.424-8.452z" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+              </svg>
+              <p className="text-xs font-semibold text-primary">Android</p>
+            </div>
+            <ol className="space-y-1 text-[11px] leading-relaxed text-foreground/70">
+              <li>1. Install Feeder as an app (tap the browser menu &rarr; &quot;Install app&quot; or &quot;Add to Home screen&quot;)</li>
+              <li>2. Share any recipe link from any app</li>
+              <li>3. Select <span className="font-semibold text-foreground">Feeder</span> from the share menu — done!</li>
+            </ol>
+          </div>
+
           <div className="mb-3 flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold">iOS Share Shortcut</h3>
-              <p className="mt-0.5 text-xs text-muted">
-                Use API keys to save recipes from your iPhone
-              </p>
+            <div className="flex items-center gap-1.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-primary">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83z" fill="currentColor"/>
+                <path d="M15.07 2c.24 1-.36 2.03-1.08 2.75C13.21 5.49 12.05 6 11.02 5.93c-.29-.98.42-2 1.08-2.64.76-.74 2.03-1.3 2.97-1.29z" fill="currentColor"/>
+              </svg>
+              <p className="text-xs font-semibold text-primary">iOS Shortcut</p>
             </div>
             <button
               onClick={() => setShowKeys(!showKeys)}
               className="text-xs font-medium text-primary"
             >
-              {showKeys ? "Hide" : "Manage"}
+              {showKeys ? "Hide" : "Setup"}
             </button>
           </div>
 

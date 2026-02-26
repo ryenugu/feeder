@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 function Spinner() {
   return (
@@ -38,6 +38,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const passwordTooShort = passwordTouched && password.length > 0 && password.length < 6;
@@ -73,7 +74,8 @@ export default function LoginPage() {
           return;
         }
 
-        router.push("/");
+        const redirectTo = searchParams.get("redirect") || "/";
+        router.push(redirectTo);
         router.refresh();
       }
     } catch (err) {
