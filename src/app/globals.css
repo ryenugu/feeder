@@ -8,11 +8,12 @@
 
 :root[data-theme="light"] {
   --background: #f9f7f5;
+  --background-0: rgb(249 247 245 / 0);
   --foreground: #2a2523;
   --primary: #8b6b7c;
   --primary-light: #f5eff2;
   --accent: #6b9080;
-  --muted: #9a918c;
+  --muted: #706860;
   --card: #ffffff;
   --border: #e9e4e0;
 
@@ -31,6 +32,7 @@
 
 :root[data-theme="dark"] {
   --background: #141112;
+  --background-0: rgb(20 17 18 / 0);
   --foreground: #e6e2df;
   --primary: #b894a5;
   --primary-light: #231c1f;
@@ -54,11 +56,12 @@
 
 :root {
   --background: #f9f7f5;
+  --background-0: rgb(249 247 245 / 0);
   --foreground: #2a2523;
   --primary: #8b6b7c;
   --primary-light: #f5eff2;
   --accent: #6b9080;
-  --muted: #9a918c;
+  --muted: #706860;
   --card: #ffffff;
   --border: #e9e4e0;
 
@@ -174,6 +177,18 @@ select {
 
 .primary-shadow {
   box-shadow: var(--primary-shadow);
+}
+
+/* Hero banner: fades from the page background into the image.
+   --background-0 is the same colour at alpha 0, avoiding the "fade-to-black"
+   artefact that occurs when interpolating toward CSS `transparent`. */
+.hero-top-gradient {
+  background: linear-gradient(
+    to bottom,
+    var(--background) 0%,
+    var(--background) 30%,
+    var(--background-0) 100%
+  );
 }
 
 @keyframes slideUp {

@@ -48,11 +48,11 @@ export default async function HomePage() {
     <div>
       <div className="mx-4 mb-6">
         <div className="relative">
-          <p className="px-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
             Your family recipe collection
           </p>
           <h1
-            className="relative z-10 -mb-5 px-1 font-black leading-[0.9] tracking-tighter text-foreground"
+            className="relative z-10 -mb-5 font-black leading-[0.9] tracking-tighter text-foreground"
             style={{ fontSize: "clamp(2.8rem, 12vw, 3.5rem)" }}
           >
             feeder
@@ -65,7 +65,7 @@ export default async function HomePage() {
               priority
               className="h-36 w-full object-cover object-[50%_65%]"
             />
-            <div className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/20 to-transparent" />
+            <div className="absolute inset-x-0 top-0 h-12 hero-top-gradient" />
           </div>
           <Link
             href="/add"

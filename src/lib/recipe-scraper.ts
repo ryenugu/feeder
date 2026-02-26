@@ -490,9 +490,112 @@ async function fetchHtml(url: string): Promise<string> {
   );
 }
 
+function isInstagramUrl(url: string): boolean {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "") === "instagram.com";
+  } catch {
+    return false;
+  }
+}
+
+function parseInstagramCaption(raw: string): {
+  title: string;
+  ingredients: string[];
+  instructions: string[];
+} {
+  if (!raw) return { title: "Untitled Recipe", ingredients: [], instructions: [] };
+
+  // Split on bullet separator (•) if present, otherwise fall back to newlines
+  const hasBullets = raw.includes("•");
+  const parts = hasBullets
+    ? raw.split("•").map((s) => s.trim()).filter(Boolean)
+    : raw.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+
+  let title = "";
+  const ingredients: string[] = [];
+  const instructions: string[] = [];
+
+  for (const part of parts) {
+    // Numbered instruction step — starts with "1. ", "2. ", etc.
+    if (/^\d+\.\s/.test(part)) {
+      // A single bullet can contain multiple steps squashed together
+      const steps = part.split(/(?=\b\d+\.\s)/).map((s) => s.trim()).filter(Boolean);
+      for (const step of steps) {
+        const m = step.match(/^\d+\.\s+(.+)/s);
+        if (m) instructions.push(m[1].trim());
+      }
+      continue;
+    }
+
+    if (!title) {
+      // Recipe name usually appears in ALL CAPS.
+      // Match a multi-word ALL CAPS phrase OR a single ALL CAPS word with 4+ chars
+      // (to avoid short words like "MY", "THE", "IN" being mistaken for a title).
+      const capsMatch = part.match(
+        /\b([A-Z]{4,}|[A-Z]{2,}(?:[\s&/'-]+[A-Z]{2,})+)\b/
+      );
+      if (capsMatch) {
+        title = capsMatch[0].trim();
+        // Text immediately after the title (on the same bullet) is the first ingredient
+        const afterTitle = part.slice(part.indexOf(title) + title.length).trim();
+        if (afterTitle.length > 2) ingredients.push(afterTitle);
+        continue;
+      }
+      // No title found yet — this is intro/caption prose, skip it
+      continue;
+    }
+
+    // Everything after the title and before numbered steps is an ingredient
+    if (part.length > 2) ingredients.push(part);
+  }
+
+  if (!title) {
+    // Fallback: strip Instagram author prefix and use first line
+    const firstPart = parts[0] ?? "";
+    const withoutPrefix = firstPart.replace(/^.+on Instagram:\s*"?/i, "").trim();
+    title = withoutPrefix.slice(0, 80) || "Untitled Recipe";
+  }
+
+  return { title, ingredients, instructions };
+}
+
+function extractInstagramRecipe($: cheerio.CheerioAPI, url: string): ExtractedRecipe {
+  const image = resolveImageUrl(
+    $('meta[property="og:image"]').attr("content") ?? null,
+    url
+  );
+
+  // Prefer og:description — it typically has the full caption text
+  const ogDesc = $('meta[property="og:description"]').attr("content") ?? "";
+  const ogTitle = $('meta[property="og:title"]').attr("content") ?? "";
+
+  // Use whichever is longer (more complete)
+  const caption = ogDesc.length >= ogTitle.length ? ogDesc : ogTitle;
+
+  const { title, ingredients, instructions } = parseInstagramCaption(caption);
+
+  return {
+    title,
+    image_url: image,
+    source_url: url,
+    source_name: "instagram.com",
+    total_time: null,
+    prep_time: null,
+    cook_time: null,
+    servings: null,
+    ingredients,
+    instructions,
+    notes: caption || null,
+  };
+}
+
 export async function extractRecipe(url: string): Promise<ExtractedRecipe> {
   const html = await fetchHtml(url);
   const $ = cheerio.load(html);
+
+  if (isInstagramUrl(url)) {
+    return extractInstagramRecipe($, url);
+  }
 
   const jsonLdScripts = $('script[type="application/ld+json"]');
   for (let i = 0; i < jsonLdScripts.length; i++) {

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import AddRecipeForm from "@/components/AddRecipeForm";
 import Link from "next/link";
 
@@ -16,7 +17,9 @@ export default function AddPage() {
         <h1 className="text-2xl font-bold text-primary">Add Recipe</h1>
       </div>
 
-      <AddRecipeForm />
+      <Suspense>
+        <AddRecipeForm />
+      </Suspense>
     </div>
   );
 }

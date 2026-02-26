@@ -38,6 +38,11 @@ function ShareTargetContent() {
       return;
     }
 
+    if (isSocialMediaUrl(url)) {
+      router.replace(`/add?url=${encodeURIComponent(url)}`);
+      return;
+    }
+
     saveRecipe(url);
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -48,6 +53,29 @@ function ShareTargetContent() {
       if (match) return match[0];
     }
     return null;
+  }
+
+  function isSocialMediaUrl(url: string): boolean {
+    try {
+      const { hostname } = new URL(url);
+      const h = hostname.replace(/^www\./, "");
+      return (
+        h === "instagram.com" ||
+        h === "tiktok.com" ||
+        h === "vm.tiktok.com" ||
+        h === "youtube.com" ||
+        h === "youtu.be" ||
+        h === "twitter.com" ||
+        h === "x.com" ||
+        h === "facebook.com" ||
+        h === "fb.com" ||
+        h === "threads.net" ||
+        h === "pinterest.com" ||
+        h === "pin.it"
+      );
+    } catch {
+      return false;
+    }
   }
 
   async function saveRecipe(url: string) {

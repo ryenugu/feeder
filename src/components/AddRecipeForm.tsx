@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ExtractedRecipe, RecipeCategory } from "@/types/recipe";
 import { RECIPE_CATEGORIES } from "@/types/recipe";
 import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
 import TagInput from "./TagInput";
+import { useToast } from "./Toast";
 
-type InputMode = "url" | "document" | "manual";
+type InputMode = "paste" | "url" | "document" | "manual";
 type MultiDocMode = "same" | "separate";
 
 const ACCEPTED_FILE_TYPES = ".pdf,.jpg,.jpeg,.png,.webp,.gif";
@@ -28,7 +29,8 @@ function isValidUrl(url: string): boolean {
 }
 
 export default function AddRecipeForm() {
-  const [mode, setMode] = useState<InputMode>("url");
+  const [mode, setMode] = useState<InputMode>("paste");
+  const [pasteText, setPasteText] = useState("");
   const [url, setUrl] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [multiDocMode, setMultiDocMode] = useState<MultiDocMode>("same");
@@ -55,8 +57,20 @@ export default function AddRecipeForm() {
   const [manualCookTime, setManualCookTime] = useState("");
   const [manualServings, setManualServings] = useState("");
   const [manualSaving, setManualSaving] = useState(false);
+  const [formattingInstructions, setFormattingInstructions] = useState(false);
+  const [formattingIngredients, setFormattingIngredients] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    const initialUrl = searchParams.get("url");
+    if (initialUrl) {
+      setUrl(initialUrl);
+      setLinkOnly(true);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function switchMode(newMode: InputMode) {
     setMode(newMode);
@@ -74,12 +88,62 @@ export default function AddRecipeForm() {
     setTags([]);
     setNotes("");
     setExtractionProgress("");
+    setPasteText("");
     setManualTitle("");
     setManualIngredients("");
     setManualInstructions("");
     setManualPrepTime("");
     setManualCookTime("");
     setManualServings("");
+  }
+
+  async function handleFormatWithAI(field: "instructions" | "ingredients") {
+    const text = field === "instructions" ? manualInstructions : manualIngredients;
+    if (!text.trim()) return;
+    if (field === "instructions") setFormattingInstructions(true);
+    else setFormattingIngredients(true);
+
+    try {
+      const res = await fetch("/api/recipes/format-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, field }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to format");
+      const formatted = (data.lines as string[]).join("\n");
+      if (field === "instructions") setManualInstructions(formatted);
+      else setManualIngredients(formatted);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to format text");
+    } finally {
+      if (field === "instructions") setFormattingInstructions(false);
+      else setFormattingIngredients(false);
+    }
+  }
+
+  async function handleParseDump(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pasteText.trim()) return;
+    setLoading(true);
+    setError(null);
+    setPreview(null);
+
+    try {
+      const res = await fetch("/api/recipes/parse-dump", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: pasteText }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to parse");
+      setPreviewImageError(false);
+      setPreview(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to parse");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleFilesAdd(incoming: FileList | File[]) {
@@ -400,7 +464,9 @@ export default function AddRecipeForm() {
       router.replace(`/recipe/${data.id}`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
+      const msg = err instanceof Error ? err.message : "Failed to save";
+      setError(msg);
+      showToast({ message: msg, duration: 5000 });
       setManualSaving(false);
     }
   }
@@ -430,6 +496,21 @@ export default function AddRecipeForm() {
     <div className="space-y-6">
       {/* Mode tabs */}
       <div className="flex gap-1 rounded-xl bg-background p-1 border border-border">
+        <button
+          type="button"
+          onClick={() => switchMode("paste")}
+          className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors ${
+            mode === "paste"
+              ? "bg-primary text-white shadow-sm"
+              : "text-muted hover:text-foreground"
+          }`}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+          </svg>
+          Paste
+        </button>
         <button
           type="button"
           onClick={() => switchMode("url")}
@@ -476,6 +557,37 @@ export default function AddRecipeForm() {
           Manual
         </button>
       </div>
+
+      {/* Paste / AI parse */}
+      {mode === "paste" && (
+        <form onSubmit={handleParseDump} className="space-y-3">
+          <textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder={"Paste anything — a URL, recipe text, copied webpage, cookbook notes..."}
+            rows={8}
+            autoFocus
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-y"
+          />
+          <button
+            type="submit"
+            disabled={loading || !pasteText.trim()}
+            className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] active:bg-primary/80 disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                  <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+                Parsing...
+              </span>
+            ) : (
+              "Parse with AI"
+            )}
+          </button>
+        </form>
+      )}
 
       {/* URL input */}
       {mode === "url" && (
@@ -667,7 +779,36 @@ export default function AddRecipeForm() {
           </div>
 
           <div>
-            <h4 className="mb-2 text-sm font-semibold text-primary">Ingredients</h4>
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-primary">Ingredients</h4>
+              {manualIngredients.trim() && (
+                <button
+                  type="button"
+                  onClick={() => handleFormatWithAI("ingredients")}
+                  disabled={formattingIngredients}
+                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                >
+                  {formattingIngredients ? (
+                    <>
+                      <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                        <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                      Formatting...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2a10 10 0 1 0 10 10" />
+                        <path d="M12 8v4l3 3" />
+                        <path d="M18.5 2.5 21 5l-6.5 6.5-3 .5.5-3L18.5 2.5z" />
+                      </svg>
+                      Format with AI
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
             <textarea
               value={manualIngredients}
               onChange={(e) => setManualIngredients(e.target.value)}
@@ -678,7 +819,36 @@ export default function AddRecipeForm() {
           </div>
 
           <div>
-            <h4 className="mb-2 text-sm font-semibold text-primary">Instructions</h4>
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-primary">Instructions</h4>
+              {manualInstructions.trim() && (
+                <button
+                  type="button"
+                  onClick={() => handleFormatWithAI("instructions")}
+                  disabled={formattingInstructions}
+                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                >
+                  {formattingInstructions ? (
+                    <>
+                      <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                        <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                      Formatting...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2a10 10 0 1 0 10 10" />
+                        <path d="M12 8v4l3 3" />
+                        <path d="M18.5 2.5 21 5l-6.5 6.5-3 .5.5-3L18.5 2.5z" />
+                      </svg>
+                      Format with AI
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
             <textarea
               value={manualInstructions}
               onChange={(e) => setManualInstructions(e.target.value)}
@@ -766,6 +936,7 @@ export default function AddRecipeForm() {
           </div>
 
           <button
+            type="button"
             onClick={handleSaveManual}
             disabled={manualSaving || !manualTitle.trim()}
             className="w-full rounded-xl bg-primary py-3.5 text-sm font-semibold text-white transition-all active:scale-[0.98] active:bg-primary/80 disabled:opacity-50"

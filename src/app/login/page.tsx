@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -222,6 +223,13 @@ function LoginForm() {
           >
             {isSignUp ? "Sign In" : "Sign Up"}
           </button>
+        </p>
+
+        <p className="mt-8 text-center text-xs text-muted">
+          By continuing, you agree to our{" "}
+          <Link href="/terms" className="hover:underline">Terms of Service</Link>
+          {" "}and{" "}
+          <Link href="/privacy" className="hover:underline">Privacy Policy</Link>.
         </p>
       </div>
     </div>
