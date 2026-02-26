@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { Recipe, MealPlanEntry } from "@/types/recipe";
 import Image from "next/image";
 import Link from "next/link";
+import defaultImage from "@/images/default.jpg";
 
 interface FamilyMember {
   user_id: string;
@@ -306,18 +307,16 @@ export default function MealPlanWeek() {
                               key={entry.id}
                               className="flex items-center gap-3 rounded-lg px-2 py-1.5"
                             >
-                              {entry.recipe?.image_url && (
-                                <Link href={`/recipe/${entry.recipe_id}`} className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
-                                  <Image
-                                    src={entry.recipe.image_url}
-                                    alt={entry.recipe?.title || ""}
-                                    fill
-                                    className="object-cover"
-                                    sizes="40px"
-                                    unoptimized={entry.recipe.image_url.toLowerCase().endsWith(".jfif")}
-                                  />
-                                </Link>
-                              )}
+                              <Link href={`/recipe/${entry.recipe_id}`} className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
+                                <Image
+                                  src={entry.recipe?.image_url || defaultImage}
+                                  alt={entry.recipe?.title || ""}
+                                  fill
+                                  className="object-cover"
+                                  sizes="40px"
+                                  {...(entry.recipe?.image_url ? { unoptimized: entry.recipe.image_url.toLowerCase().endsWith(".jfif") } : { placeholder: "blur" as const })}
+                                />
+                              </Link>
                               <Link href={`/recipe/${entry.recipe_id}`} className="min-w-0 flex-1 truncate text-sm font-medium hover:text-primary">
                                 {entry.recipe?.title || "Recipe"}
                               </Link>
@@ -395,11 +394,16 @@ export default function MealPlanWeek() {
                             onClick={() => addToDay(r.id, dateStr, pickerMealType)}
                             className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-primary-light"
                           >
-                            {r.image_url && (
-                              <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md">
-                                <Image src={r.image_url} alt={r.title} fill className="object-cover" sizes="32px" unoptimized={r.image_url.toLowerCase().endsWith(".jfif")} />
-                              </div>
-                            )}
+                            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md">
+                              <Image
+                                src={r.image_url || defaultImage}
+                                alt={r.title}
+                                fill
+                                className="object-cover"
+                                sizes="32px"
+                                {...(r.image_url ? { unoptimized: r.image_url.toLowerCase().endsWith(".jfif") } : { placeholder: "blur" as const })}
+                              />
+                            </div>
                             <span className="truncate">{r.title}</span>
                           </button>
                         ))}
