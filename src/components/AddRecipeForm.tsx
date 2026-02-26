@@ -298,7 +298,7 @@ export default function AddRecipeForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
-      router.push(`/recipe/${data.id}`);
+      router.replace(`/recipe/${data.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -328,7 +328,7 @@ export default function AddRecipeForm() {
         if (!res.ok)
           throw new Error(data.error || `Failed to save "${recipe.title}"`);
       }
-      router.push("/");
+      router.replace("/");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save recipes");
@@ -397,7 +397,7 @@ export default function AddRecipeForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
-      router.push(`/recipe/${data.id}`);
+      router.replace(`/recipe/${data.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");

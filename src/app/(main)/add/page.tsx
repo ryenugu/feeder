@@ -13,7 +13,7 @@ export default function AddPage() {
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </Link>
-        <h1 className="text-xl font-bold">Add Recipe</h1>
+        <h1 className="text-2xl font-bold text-primary">Add Recipe</h1>
       </div>
 
       <AddRecipeForm />

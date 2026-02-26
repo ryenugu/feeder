@@ -168,7 +168,7 @@ export default function EditRecipePage() {
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <h1 className="text-xl font-bold">Edit Recipe</h1>
+        <h1 className="text-2xl font-bold text-primary">Edit Recipe</h1>
       </div>
 
       {error && (

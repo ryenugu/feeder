@@ -17,32 +17,37 @@ export default async function HomePage() {
 
   return (
     <div>
-      <div className="relative mx-4 mb-6 overflow-hidden rounded-3xl">
-        <Image
-          src={coverImage}
-          alt="Feeder — your family recipe collection"
-          placeholder="blur"
-          priority
-          className="h-52 w-full object-cover object-[50%_72%]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/5" />
-        <Link
-          href="/add"
-          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition-all hover:bg-white/30 active:scale-95"
-          aria-label="Add recipe"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </Link>
-        <div className="absolute inset-x-0 bottom-0 px-6 pb-5">
-          <h1 className="text-[1.7rem] font-bold tracking-tight text-white">
-            feeder
-          </h1>
-          <p className="mt-0.5 text-[13px] font-medium tracking-wide text-white/60">
+      <div className="mx-4 mb-6">
+        <div className="relative">
+          <p className="px-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">
             Your family recipe collection
           </p>
+          <h1
+            className="relative z-10 -mb-5 px-1 font-black leading-[0.9] tracking-tighter text-foreground"
+            style={{ fontSize: "clamp(2.8rem, 12vw, 3.5rem)" }}
+          >
+            feeder
+          </h1>
+          <div className="relative overflow-hidden rounded-3xl">
+            <Image
+              src={coverImage}
+              alt="Feeder — your family recipe collection"
+              placeholder="blur"
+              priority
+              className="h-36 w-full object-cover object-[50%_65%]"
+            />
+            <div className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/20 to-transparent" />
+          </div>
+          <Link
+            href="/add"
+            className="absolute bottom-4 right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-white primary-shadow transition-all hover:brightness-110 active:scale-95"
+            aria-label="Add recipe"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </Link>
         </div>
       </div>
 
